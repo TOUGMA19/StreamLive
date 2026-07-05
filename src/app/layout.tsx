@@ -6,6 +6,10 @@ export const metadata: Metadata = {
   title: "StreamVault - IPTV Player",
   description: "Professional IPTV & M3U playlist player",
   applicationName: "StreamVault",
+  icons: {
+    icon: "/logo.png",
+    apple: "/logo.png",
+  },
   appleWebApp: {
     capable: true,
     statusBarStyle: "black-translucent",
