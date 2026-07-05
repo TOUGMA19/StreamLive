@@ -44,7 +44,7 @@ const nextConfig: NextConfig = {
   },
 
   // Sortie statique optionnelle
-  output: "standalone",
+ // output: "standalone",
 };
 
 export default nextConfig;
