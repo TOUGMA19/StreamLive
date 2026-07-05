@@ -113,17 +113,39 @@ export async function deletePlaylist(id: number): Promise<void> {
 
 // ─── Channels ─────────────────────────────────────────────────
 
-export async function addChannels(playlistId: number, channels: Omit<Channel, "id">[]): Promise<void> {
+// Taille des lots d'insertion : assez grand pour être efficace, assez petit
+// pour laisser l'UI respirer entre deux lots (évite le gel du navigateur
+// sur les très grosses playlists).
+const INSERT_BATCH_SIZE = 3000;
+
+function nextTick(): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, 0));
+}
+
+export async function addChannels(
+  playlistId: number,
+  channels: Omit<Channel, "id">[],
+  onProgress?: (done: number, total: number) => void
+): Promise<void> {
   const db = await openDB();
-  const t2 = tx(db, "channels", "readwrite");
-  const store = t2.objectStore("channels");
-  for (const ch of channels) {
-    store.add(ch);
+  const total = channels.length;
+
+  for (let offset = 0; offset < total; offset += INSERT_BATCH_SIZE) {
+    const batch = channels.slice(offset, offset + INSERT_BATCH_SIZE);
+    await new Promise<void>((resolve, reject) => {
+      const t2 = tx(db, "channels", "readwrite");
+      const store = t2.objectStore("channels");
+      for (const ch of batch) {
+        store.add(ch);
+      }
+      t2.oncomplete = () => resolve();
+      t2.onerror = () => reject(t2.error);
+    });
+    onProgress?.(Math.min(offset + batch.length, total), total);
+    // Rend la main au navigateur entre deux lots (scroll, animations,
+    // interactions restent fluides même pendant un import massif).
+    await nextTick();
   }
-  await new Promise<void>((resolve, reject) => {
-    t2.oncomplete = () => resolve();
-    t2.onerror = () => reject(t2.error);
-  });
 }
 
 export async function getChannels(playlistId: number): Promise<Channel[]> {
