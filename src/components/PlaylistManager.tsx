@@ -63,7 +63,10 @@ export function PlaylistManager({ playlists, onOpen, onRefresh, onToast }: Playl
       isFavorite: false,
     }));
 
-    await store.addChannels(playlist.id, channels);
+    await store.addChannels(playlist.id, channels, (done, total) => {
+      const pct = Math.round((done / total) * 100);
+      setProgress(`Enregistrement... ${done.toLocaleString("fr-FR")}/${total.toLocaleString("fr-FR")} (${pct}%)`);
+    });
     setProgress("");
     setShowAddModal(false);
     resetForm();
