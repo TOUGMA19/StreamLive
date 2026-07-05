@@ -113,11 +113,11 @@ export function CategorySidebar({
       {/* Tablette / bureau / TV : sidebar verticale repliable */}
       <div
         className={`hidden md:flex bg-dark-900 border-r border-dark-600/30 flex-col shrink-0 transition-all duration-300 ${
-          collapsed ? "w-[52px]" : "w-56 lg:w-64"
+          collapsed ? "w-[48px]" : "w-40 lg:w-48"
         }`}
       >
         {/* Header */}
-        <div className="flex items-center justify-between px-3 py-2.5 border-b border-dark-600/30">
+        <div className="flex items-center justify-between px-2.5 py-2 border-b border-dark-600/30">
           {!collapsed && (
             <span className="text-[10px] font-bold text-gray-500 uppercase tracking-widest">
               Catégories
@@ -143,7 +143,7 @@ export function CategorySidebar({
           {/* All */}
           <button
             onClick={() => onSelectGroup("all")}
-            className={`focusable w-full flex items-center gap-2.5 px-3 py-2.5 text-left transition-all ${
+            className={`focusable w-full flex items-center gap-2.5 px-2.5 py-2 text-left transition-all ${
               selectedGroup === "all"
                 ? "bg-accent-500/10 text-accent-300"
                 : "text-gray-400 hover:text-white hover:bg-dark-700/50"
@@ -165,7 +165,7 @@ export function CategorySidebar({
             <button
               key={g.group}
               onClick={() => onSelectGroup(g.group)}
-              className={`focusable w-full flex items-center gap-2.5 px-3 py-2.5 text-left transition-all ${
+              className={`focusable w-full flex items-center gap-2.5 px-2.5 py-2 text-left transition-all ${
                 selectedGroup === g.group
                   ? "bg-accent-500/10 text-accent-300"
                   : "text-gray-400 hover:text-white hover:bg-dark-700/50"
