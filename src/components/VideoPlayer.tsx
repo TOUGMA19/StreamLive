@@ -9,6 +9,7 @@ interface VideoPlayerProps {
   channel: Channel;
   onNextChannel?: () => void;
   onPrevChannel?: () => void;
+  onBackMobile?: () => void;
 }
 
 interface QualityLevel {
@@ -17,7 +18,7 @@ interface QualityLevel {
   bitrate: number;
 }
 
-export function VideoPlayer({ channel, onNextChannel, onPrevChannel }: VideoPlayerProps) {
+export function VideoPlayer({ channel, onNextChannel, onPrevChannel, onBackMobile }: VideoPlayerProps) {
   const videoRef = useRef<HTMLVideoElement>(null);
   const hlsRef = useRef<Hls | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -165,7 +166,7 @@ export function VideoPlayer({ channel, onNextChannel, onPrevChannel }: VideoPlay
         // Préchargement proactif des segments
         hls.on(Hls.Events.FRAG_LOADED, (_event, data) => {
           const frag = data.frag;
-          if (frag && frag.sn !== undefined) {
+          if (frag && typeof frag.sn === "number") {
             // Précharger le prochain segment
             const nextSn = frag.sn + 1;
             const level = hls.levels[hls.currentLevel];
@@ -388,6 +389,11 @@ export function VideoPlayer({ channel, onNextChannel, onPrevChannel }: VideoPlay
 
           <div className="flex items-center justify-between mb-2.5">
             <div className="flex items-center gap-2.5">
+              {onBackMobile && (
+                <button onClick={(e) => { e.stopPropagation(); onBackMobile(); }} className="p-1.5 -ml-1.5 text-gray-400 hover:text-white transition-colors rounded-lg hover:bg-white/5 md:hidden" title="Retour">
+                  <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" /></svg>
+                </button>
+              )}
               <div className="flex items-center gap-1.5">
                 <div className="w-1.5 h-1.5 rounded-full bg-live live-dot" />
                 <span className="text-[10px] font-bold text-live uppercase tracking-wider">Live</span>
