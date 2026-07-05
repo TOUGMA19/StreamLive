@@ -72,6 +72,7 @@ export function PlayerApp() {
         channelCount: parsed.length,
         createdAt: now,
         updatedAt: now,
+        isDefault: true,
       });
 
       const channels = parsed.map((ch) => ({
