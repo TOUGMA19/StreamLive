@@ -161,13 +161,17 @@ export function PlaylistManager({ playlists, onOpen, onRefresh, onToast }: Playl
     } finally { setRefreshingId(null); }
   };
 
-  const handleDelete = async (id: number, pName: string, e: React.MouseEvent) => {
+  const handleDelete = async (playlist: Playlist, e: React.MouseEvent) => {
     e.stopPropagation();
-    if (!confirm(`Supprimer "${pName}" ?`)) return;
+    if (playlist.isDefault) {
+      onToast("Cette playlist par défaut ne peut pas être supprimée", "error");
+      return;
+    }
+    if (!confirm(`Supprimer "${playlist.name}" ?`)) return;
     try {
-      await store.deletePlaylist(id);
+      await store.deletePlaylist(playlist.id);
       onRefresh();
-      onToast(`"${pName}" supprimée`, "info");
+      onToast(`"${playlist.name}" supprimée`, "info");
     } catch { onToast("Erreur", "error"); }
   };
 
@@ -291,6 +295,12 @@ export function PlaylistManager({ playlists, onOpen, onRefresh, onToast }: Playl
                   <div className="flex-1 min-w-0">
                     <h3 className="font-bold text-white group-hover:text-accent-300 transition-colors truncate text-lg">{playlist.name}</h3>
                     <div className="flex items-center gap-2 mt-1">
+                      {playlist.isDefault && (
+                        <>
+                          <span className="text-[10px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded-md bg-accent-500/20 text-accent-300">Par défaut</span>
+                          <span className="text-gray-700">•</span>
+                        </>
+                      )}
                       <span className="text-xs text-gray-500">{playlist.channelCount.toLocaleString("fr-FR")} chaînes</span>
                       <span className="text-gray-700">•</span>
                       <span className="text-xs text-gray-500">{formatDate(playlist.updatedAt)}</span>
@@ -312,14 +322,16 @@ export function PlaylistManager({ playlists, onOpen, onRefresh, onToast }: Playl
                     </button>
                   )}
                   <div className="flex-1" />
-                  <button
-                    onClick={(e) => handleDelete(playlist.id, playlist.name, e)}
-                    className="text-gray-600 hover:text-danger transition-colors p-1.5 rounded-lg hover:bg-dark-600"
-                  >
-                    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                    </svg>
-                  </button>
+                  {!playlist.isDefault && (
+                    <button
+                      onClick={(e) => handleDelete(playlist, e)}
+                      className="text-gray-600 hover:text-danger transition-colors p-1.5 rounded-lg hover:bg-dark-600"
+                    >
+                      <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                      </svg>
+                    </button>
+                  )}
                 </div>
               </div>
             ))}
