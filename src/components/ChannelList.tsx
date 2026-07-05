@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, useMemo, useCallback } from "react";
 import type { Channel } from "@/lib/types";
 import { proxyImageUrl } from "@/lib/proxy";
 
@@ -13,6 +13,13 @@ interface ChannelListProps {
   loading: boolean;
 }
 
+// Hauteur fixe par ligne (identique sur mobile et desktop) : indispensable
+// pour calculer quelles lignes sont visibles sans devoir mesurer le DOM.
+const ITEM_HEIGHT = 60;
+// Nombre de lignes supplémentaires rendues au-dessus/en-dessous de la zone
+// visible, pour éviter un "flash" blanc pendant un scroll rapide.
+const OVERSCAN = 10;
+
 export function ChannelList({
   channels,
   selectedChannel,
@@ -22,14 +29,52 @@ export function ChannelList({
   loading,
 }: ChannelListProps) {
   const [imgErrors, setImgErrors] = useState<Set<number>>(new Set());
-  const selectedRef = useRef<HTMLDivElement>(null);
   const listRef = useRef<HTMLDivElement>(null);
+  const [scrollTop, setScrollTop] = useState(0);
+  const [viewportHeight, setViewportHeight] = useState(600);
 
+  // Mesure la hauteur réellement disponible (et la ré-évalue si la fenêtre change)
   useEffect(() => {
-    if (selectedRef.current) {
-      selectedRef.current.scrollIntoView({ block: "nearest", behavior: "smooth" });
+    const el = listRef.current;
+    if (!el) return;
+    const update = () => setViewportHeight(el.clientHeight);
+    update();
+    const ro = new ResizeObserver(update);
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, []);
+
+  // Garde le canal sélectionné visible (remplace l'ancien scrollIntoView,
+  // qui nécessitait que la ligne existe déjà dans le DOM)
+  useEffect(() => {
+    if (!selectedChannel || !listRef.current) return;
+    const idx = channels.findIndex((c) => c.id === selectedChannel.id);
+    if (idx === -1) return;
+    const el = listRef.current;
+    const itemTop = idx * ITEM_HEIGHT;
+    const itemBottom = itemTop + ITEM_HEIGHT;
+    if (itemTop < el.scrollTop) {
+      el.scrollTop = itemTop;
+    } else if (itemBottom > el.scrollTop + el.clientHeight) {
+      el.scrollTop = itemBottom - el.clientHeight;
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedChannel?.id]);
+
+  const handleScroll = useCallback((e: React.UIEvent<HTMLDivElement>) => {
+    setScrollTop(e.currentTarget.scrollTop);
+  }, []);
+
+  const totalHeight = channels.length * ITEM_HEIGHT;
+  const startIndex = Math.max(0, Math.floor(scrollTop / ITEM_HEIGHT) - OVERSCAN);
+  const endIndex = Math.min(
+    channels.length,
+    Math.ceil((scrollTop + viewportHeight) / ITEM_HEIGHT) + OVERSCAN
+  );
+  const visibleChannels = useMemo(
+    () => channels.slice(startIndex, endIndex),
+    [channels, startIndex, endIndex]
+  );
 
   if (loading) {
     return (
@@ -49,10 +94,12 @@ export function ChannelList({
     <div className="w-full md:w-72 lg:w-80 bg-dark-900 md:border-r border-dark-600/30 flex flex-col shrink-0 min-h-0">
       <div className="px-3 py-2 border-b border-dark-600/30 flex items-center justify-between shrink-0">
         <span className="text-[10px] font-bold text-gray-500 uppercase tracking-widest">Chaînes</span>
-        <span className="text-[10px] text-gray-600 bg-dark-700 px-2 py-0.5 rounded-full">{channels.length}</span>
+        <span className="text-[10px] text-gray-600 bg-dark-700 px-2 py-0.5 rounded-full">
+          {channels.length.toLocaleString("fr-FR")}
+        </span>
       </div>
 
-      <div ref={listRef} className="flex-1 overflow-y-auto">
+      <div ref={listRef} className="flex-1 overflow-y-auto relative" onScroll={handleScroll}>
         {channels.length === 0 ? (
           <div className="p-8 text-center">
             <div className="text-4xl mb-3">🔍</div>
@@ -60,68 +107,75 @@ export function ChannelList({
             <p className="text-gray-600 text-xs mt-1">Essayez une autre recherche ou catégorie</p>
           </div>
         ) : (
-          channels.map((channel) => {
-            const isSelected = selectedChannel?.id === channel.id;
-            return (
-              <div
-                key={channel.id}
-                ref={isSelected ? selectedRef : null}
-                role="button"
-                tabIndex={0}
-                onClick={() => onPlay(channel)}
-                onDoubleClick={() => onPlayFullscreen?.(channel)}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter" || e.key === " ") { e.preventDefault(); onPlay(channel); }
-                }}
-                className={`channel-item focusable ${isSelected ? "active" : ""} flex items-center gap-3 px-3 py-3 md:py-2 cursor-pointer min-h-[60px] md:min-h-0`}
-              >
-                <div className="w-10 h-10 md:w-9 md:h-9 rounded-lg overflow-hidden bg-dark-700 flex items-center justify-center shrink-0 border border-dark-600/30">
-                  {channel.logo && !imgErrors.has(channel.id) ? (
-                    <img
-                      src={proxyImageUrl(channel.logo) || ""}
-                      alt=""
-                      className="w-full h-full object-cover"
-                      onError={() => setImgErrors((prev) => new Set(prev).add(channel.id))}
-                      loading="lazy"
-                      referrerPolicy="no-referrer"
-                    />
-                  ) : (
-                    <span className="text-sm">📺</span>
-                  )}
-                </div>
-
-                <div className="flex-1 min-w-0">
-                  <div className={`text-sm md:text-[13px] font-medium truncate ${isSelected ? "text-accent-300" : "text-gray-200"}`}>
-                    {channel.name}
+          // Le conteneur fait toute la hauteur "virtuelle" (comme s'il y avait
+          // vraiment 5 millions de lignes), mais seules les lignes visibles
+          // (visibleChannels) sont de vrais éléments DOM, positionnés en absolu
+          // à leur place calculée. C'est ce qui évite le crash du navigateur.
+          <div style={{ height: totalHeight, position: "relative" }}>
+            {visibleChannels.map((channel, i) => {
+              const actualIndex = startIndex + i;
+              const isSelected = selectedChannel?.id === channel.id;
+              return (
+                <div
+                  key={channel.id}
+                  role="button"
+                  tabIndex={0}
+                  onClick={() => onPlay(channel)}
+                  onDoubleClick={() => onPlayFullscreen?.(channel)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter" || e.key === " ") { e.preventDefault(); onPlay(channel); }
+                  }}
+                  style={{ position: "absolute", top: actualIndex * ITEM_HEIGHT, left: 0, right: 0, height: ITEM_HEIGHT }}
+                  className={`channel-item focusable ${isSelected ? "active" : ""} flex items-center gap-3 px-3 cursor-pointer`}
+                >
+                  <div className="w-10 h-10 md:w-9 md:h-9 rounded-lg overflow-hidden bg-dark-700 flex items-center justify-center shrink-0 border border-dark-600/30">
+                    {channel.logo && !imgErrors.has(channel.id) ? (
+                      <img
+                        src={proxyImageUrl(channel.logo) || ""}
+                        alt=""
+                        className="w-full h-full object-cover"
+                        onError={() => setImgErrors((prev) => new Set(prev).add(channel.id))}
+                        loading="lazy"
+                        referrerPolicy="no-referrer"
+                      />
+                    ) : (
+                      <span className="text-sm">📺</span>
+                    )}
                   </div>
-                  <div className="text-xs md:text-[10px] text-gray-600 truncate">{channel.group}</div>
-                </div>
 
-                <div className="flex items-center gap-1 shrink-0">
-                  <button
-                    onClick={(e) => { e.stopPropagation(); onToggleFavorite(channel.id); }}
-                    className="focusable p-2 md:p-1 transition-colors rounded-md hover:bg-dark-600"
-                  >
-                    <svg
-                      className={`w-4 h-4 md:w-3.5 md:h-3.5 ${channel.isFavorite ? "text-red-400" : "text-gray-700 hover:text-red-400"}`}
-                      fill={channel.isFavorite ? "currentColor" : "none"}
-                      viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}
-                    >
-                      <path strokeLinecap="round" strokeLinejoin="round" d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" />
-                    </svg>
-                  </button>
-
-                  {isSelected && (
-                    <div className="flex items-end gap-px h-4 ml-1">
-                      <div className="equalizer-bar eq-1" />
-                      <div className="equalizer-bar eq-2" />
-                      <div className="equalizer-bar eq-3" />
+                  <div className="flex-1 min-w-0">
+                    <div className={`text-sm md:text-[13px] font-medium truncate ${isSelected ? "text-accent-300" : "text-gray-200"}`}>
+                      {channel.name}
                     </div>
-                  )}
+                    <div className="text-xs md:text-[10px] text-gray-600 truncate">{channel.group}</div>
+                  </div>
+
+                  <div className="flex items-center gap-1 shrink-0">
+                    <button
+                      onClick={(e) => { e.stopPropagation(); onToggleFavorite(channel.id); }}
+                      className="focusable p-2 md:p-1 transition-colors rounded-md hover:bg-dark-600"
+                    >
+                      <svg
+                        className={`w-4 h-4 md:w-3.5 md:h-3.5 ${channel.isFavorite ? "text-red-400" : "text-gray-700 hover:text-red-400"}`}
+                        fill={channel.isFavorite ? "currentColor" : "none"}
+                        viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}
+                      >
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" />
+                      </svg>
+                    </button>
+
+                    {isSelected && (
+                      <div className="flex items-end gap-px h-4 ml-1">
+                        <div className="equalizer-bar eq-1" />
+                        <div className="equalizer-bar eq-2" />
+                        <div className="equalizer-bar eq-3" />
+                      </div>
+                    )}
+                  </div>
                 </div>
-              </div>
-            );
-          })
+              );
+            })}
+          </div>
         )}
       </div>
     </div>
