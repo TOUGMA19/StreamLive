@@ -25,10 +25,13 @@ class LRUCache<K, V> {
   }
   set(key: K, val: V): void {
     if (this.cache.has(key)) this.cache.delete(key);
-    else if (this.cache.size >= this.maxSize) {
-      const first = this.cache.keys().next().value;
-      this.cache.delete(first);
-    }
+    // APRÈS (Corrigé)
+else if (this.cache.size >= this.maxSize) {
+  const first = this.cache.keys().next().value;
+  if (first !== undefined) {
+    this.cache.delete(first);
+  }
+}
     this.cache.set(key, val);
   }
   has(key: K): boolean { return this.cache.has(key); }
