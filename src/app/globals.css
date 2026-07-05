@@ -8,11 +8,11 @@
   --color-dark-600: #22222f;
   --color-dark-500: #2c2c3a;
   --color-dark-400: #3a3a4a;
-  --color-accent-600: #4338ca;
-  --color-accent-500: #6366f1;
-  --color-accent-400: #818cf8;
-  --color-accent-300: #a5b4fc;
-  --color-accent-glow: rgba(99, 102, 241, 0.25);
+  --color-accent-600: #c2410c;
+  --color-accent-500: #f97316;
+  --color-accent-400: #fb923c;
+  --color-accent-300: #fdba74;
+  --color-accent-glow: rgba(249, 115, 22, 0.3);
   --color-success: #22c55e;
   --color-warning: #f59e0b;
   --color-danger: #ef4444;
@@ -127,7 +127,7 @@ video { outline: none; }
 }
 .channel-item:hover { background: var(--color-dark-600); }
 .channel-item:hover::before { opacity: 0.5; }
-.channel-item.active { background: linear-gradient(90deg, rgba(99,102,241,0.15) 0%, transparent 100%); }
+.channel-item.active { background: linear-gradient(90deg, var(--color-accent-glow) 0%, transparent 100%); }
 .channel-item.active::before { opacity: 1; }
 
 /* Glow effects */
