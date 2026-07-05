@@ -177,6 +177,13 @@ export function PlayerApp() {
     }
   };
 
+  // Double-clic sur une chaîne : lance la lecture ET passe en plein écran
+  const [fullscreenSignal, setFullscreenSignal] = useState(0);
+  const playChannelFullscreen = async (channel: Channel) => {
+    await playChannel(channel);
+    setFullscreenSignal((s) => s + 1);
+  };
+
   // Next / Prev channel
   const navigateChannel = useCallback(
     (direction: 1 | -1) => {
@@ -262,7 +269,7 @@ export function PlayerApp() {
         />
       </div>
       <div className="flex flex-col md:flex-row flex-1 overflow-hidden">
-        {!showRecent && (
+        {!showRecent && (selectedPlaylist?.groups?.length ?? 0) > 1 && (
           <div className={mobileWatching ? "hidden md:block" : "block"}>
             <CategorySidebar
               groups={selectedPlaylist?.groups || []}
@@ -283,6 +290,7 @@ export function PlayerApp() {
             channels={channels}
             selectedChannel={selectedChannel}
             onPlay={playChannel}
+            onPlayFullscreen={playChannelFullscreen}
             onToggleFavorite={toggleFavorite}
             loading={loading}
           />
@@ -295,6 +303,7 @@ export function PlayerApp() {
               onNextChannel={() => navigateChannel(1)}
               onPrevChannel={() => navigateChannel(-1)}
               onBackMobile={() => setSelectedChannel(null)}
+              fullscreenSignal={fullscreenSignal}
             />
           ) : (
             <div className="flex-1 flex items-center justify-center p-6">
