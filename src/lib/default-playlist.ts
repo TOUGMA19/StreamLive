@@ -10,7 +10,7 @@ export const DEFAULT_PLAYLIST_NAME = "Ma Playlist";
 // ci-dessous puis que tu redéploies sur Vercel. C'est ce qui déclenche la
 // mise à jour automatique chez les utilisateurs qui ont déjà l'appli ouverte
 // ou installée (sinon ils garderaient l'ancienne liste indéfiniment).
-export const DEFAULT_PLAYLIST_VERSION = "4";
+export const DEFAULT_PLAYLIST_VERSION = "5";
 
 // 👇👇👇 REMPLACE TOUT LE CONTENU ENTRE LES BACKTICKS PAR TON FICHIER .m3u8 👇👇👇
 export const DEFAULT_PLAYLIST_M3U = `#EXTM3U
