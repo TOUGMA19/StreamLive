@@ -10,6 +10,7 @@ interface VideoPlayerProps {
   onNextChannel?: () => void;
   onPrevChannel?: () => void;
   onBackMobile?: () => void;
+  fullscreenSignal?: number;
 }
 
 interface QualityLevel {
@@ -18,7 +19,7 @@ interface QualityLevel {
   bitrate: number;
 }
 
-export function VideoPlayer({ channel, onNextChannel, onPrevChannel, onBackMobile }: VideoPlayerProps) {
+export function VideoPlayer({ channel, onNextChannel, onPrevChannel, onBackMobile, fullscreenSignal }: VideoPlayerProps) {
   const videoRef = useRef<HTMLVideoElement>(null);
   const hlsRef = useRef<Hls | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -249,6 +250,24 @@ export function VideoPlayer({ channel, onNextChannel, onPrevChannel, onBackMobil
       else await document.exitFullscreen();
     } catch { /* ignore */ }
   }, []);
+
+  // Entre en plein écran (sans basculer si déjà en plein écran) — utilisé
+  // pour le double-clic sur une chaîne dans la liste.
+  const enterFullscreen = useCallback(async () => {
+    const container = containerRef.current;
+    if (!container || document.fullscreenElement) return;
+    try {
+      await container.requestFullscreen();
+    } catch { /* ignore */ }
+  }, []);
+
+  const lastFullscreenSignalRef = useRef(0);
+  useEffect(() => {
+    if (fullscreenSignal && fullscreenSignal !== lastFullscreenSignalRef.current) {
+      lastFullscreenSignalRef.current = fullscreenSignal;
+      enterFullscreen();
+    }
+  }, [fullscreenSignal, enterFullscreen]);
 
   const togglePip = useCallback(async () => {
     const video = videoRef.current;
