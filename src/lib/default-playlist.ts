@@ -458,6 +458,20 @@ https://channels.trace.plus/Traceprod/URBAN_AFRIC_FR_hd/index.m3u8
 https://channels.trace.plus/Traceprod/URBAN_DOM_hd/index.m3u8
 #EXTINF:-1 tvg-id="France24.fr@Spanish",France 24 Spanish (720p)
 https://live-evg8.tv360.bitel.com.pe/bitel/france24SRT/playlist.m3u8
+#EXTINF:-1,|FR.RP| SERIE CLUB HD
+http://x.rprotv.com:25443/live/6544458469/HA15G32MNS/9226.ts
+#EXTINF:-1,|FR| 13EME RUE
+http://x.rprotv.com:25443/live/6544458469/HA15G32MNS/9365.ts
+#EXTINF:-1,|FR.RP| 13EME RUE HD
+http://x.rprotv.com:25443/live/6544458469/HA15G32MNS/15217.ts
+#EXTINF:-1,|FR| 13EME RUE FHD
+http://x.rprotv.com:25443/live/6544458469/HA15G32MNS/9596.ts
+#EXTINF:-1,|FR| SYFY
+http://x.rprotv.com:25443/live/6544458469/HA15G32MNS/9214.ts
+#EXTINF:-1,|FR.RP| SYFY HD
+http://x.rprotv.com:25443/live/6544458469/HA15G32MNS/15123.ts
+#EXTINF:-1,|FR| SYFY FHD
+http://x.rprotv.com:25443/live/6544458469/HA15G32MNS/9498.ts
 
 `;
 // 👆👆👆 Colle ici le contenu complet de ton fichier .m3u / .m3u8 👆👆👆
