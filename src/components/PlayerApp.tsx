@@ -9,6 +9,8 @@ import { Header } from "./Header";
 import { ToastContainer } from "./Toast";
 import type { Playlist, Channel, Toast } from "@/lib/types";
 import * as store from "@/lib/store";
+import { parseM3U } from "@/lib/m3u-parser";
+import { DEFAULT_PLAYLIST_M3U, DEFAULT_PLAYLIST_NAME } from "@/lib/default-playlist";
 
 type View = "playlists" | "player";
 
@@ -45,9 +47,55 @@ export function PlayerApp() {
     }
   }, []);
 
+  // Charge la playlist par défaut (src/lib/default-playlist.ts) au tout
+  // premier lancement, uniquement si aucune playlist n'existe encore.
+  const seedDefaultPlaylist = useCallback(async () => {
+    if (typeof window === "undefined") return;
+    if (localStorage.getItem("default_playlist_seeded")) return;
+    localStorage.setItem("default_playlist_seeded", "1");
+
+    try {
+      const existing = await store.getAllPlaylists();
+      if (existing.length > 0) return; // l'utilisateur a déjà des playlists
+
+      const parsed = parseM3U(DEFAULT_PLAYLIST_M3U);
+      if (parsed.length === 0) return; // placeholder pas encore rempli
+
+      const now = new Date().toISOString();
+      const playlist = await store.addPlaylist({
+        name: DEFAULT_PLAYLIST_NAME,
+        url: null,
+        type: "m3u",
+        xtreamHost: null,
+        xtreamUsername: null,
+        xtreamPassword: null,
+        channelCount: parsed.length,
+        createdAt: now,
+        updatedAt: now,
+      });
+
+      const channels = parsed.map((ch) => ({
+        playlistId: playlist.id,
+        name: ch.name,
+        url: ch.url,
+        logo: ch.logo,
+        group: ch.group || "Sans catégorie",
+        tvgId: ch.tvgId,
+        tvgName: ch.tvgName,
+        isFavorite: false,
+      }));
+      await store.addChannels(playlist.id, channels);
+    } catch (err) {
+      console.error("Échec du chargement de la playlist par défaut :", err);
+    }
+  }, []);
+
   useEffect(() => {
-    fetchPlaylists();
-  }, [fetchPlaylists]);
+    (async () => {
+      await seedDefaultPlaylist();
+      await fetchPlaylists();
+    })();
+  }, [seedDefaultPlaylist, fetchPlaylists]);
 
   // Open a playlist
   const openPlaylist = async (playlist: Playlist) => {
