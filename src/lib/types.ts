@@ -10,6 +10,7 @@ export interface Playlist {
   createdAt: string;
   updatedAt: string;
   groups?: GroupInfo[];
+  isDefault?: boolean;
 }
 
 export interface GroupInfo {
