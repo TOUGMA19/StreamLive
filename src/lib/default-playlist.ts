@@ -12,6 +12,8 @@ export const DEFAULT_PLAYLIST_M3U = `#EXTM3U
 https://live-20minutestv.digiteka.com/1961167769/index.m3u8
 #EXTINF:-1 tvg-id="ADNTVPlus.fr@SD",ADN TV+ (720p)
 https://d3b73b34o7cvkq.cloudfront.net/v1/master/3722c60a815c199d9c0ef36c5b73da68a62b09d1/cc-gz2sgqzp076kf/adn.m3u8
+#EXTINF:-1 tvg-id="RMCSport2.fr" tvg-logo="https://example.com/logo.png" group-title="Sports",RMC Sport 2 FHD
+https://cors-anywhere.herokuapp.com/http://drmv3-m6.info:80/play/live.php?mac=00:1A:79:84:1A:60&stream=146116&extension=ts
 #EXTINF:-1 tvg-id="Africa24.fr@SD",Africa 24 (1080p)
 https://africa24.vedge.infomaniak.com/livecast/ik:africa24/manifest.m3u8
 #EXTINF:-1 tvg-id="Africa24English.fr@SD",Africa 24 English (1080p)
