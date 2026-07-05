@@ -47,12 +47,12 @@ export function Header({
   }, [onSearchChange]);
 
   return (
-    <header className="relative glass border-b border-dark-600/50 px-2.5 sm:px-4 py-2 sm:py-2.5 flex items-center gap-2 sm:gap-3 shrink-0 z-30 min-h-14">
+    <header className="relative glass border-b border-dark-600/50 px-2.5 sm:px-4 py-1.5 sm:py-2 flex items-center gap-2 sm:gap-3 shrink-0 z-30 min-h-11">
       {/* Back button */}
       {onBack && (
         <button
           onClick={onBack}
-          className="flex items-center justify-center w-9 h-9 sm:w-8 sm:h-8 rounded-lg text-gray-400 hover:text-white hover:bg-dark-600 active:bg-dark-600 transition-all shrink-0"
+          className="flex items-center justify-center w-8 h-8 sm:w-7 sm:h-7 rounded-lg text-gray-400 hover:text-white hover:bg-dark-600 active:bg-dark-600 transition-all shrink-0"
           title="Retour (Échap)"
         >
           <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -63,18 +63,18 @@ export function Header({
 
       {/* Logo & Title */}
       <div className="flex items-center gap-2.5 min-w-0">
-        <div className="relative w-9 h-9 shrink-0">
+        <div className="relative w-7 h-7 shrink-0">
           <img src="/logo.png" alt="StreamVault" className="w-full h-full object-contain" />
         </div>
         <div className="min-w-0">
-          <h1 className="text-sm sm:text-base font-bold text-white leading-tight truncate">{title}</h1>
-          {subtitle && <p className="hidden sm:block text-xs text-gray-500 leading-tight truncate">{subtitle}</p>}
+          <h1 className="text-sm font-bold text-white leading-tight truncate">{title}</h1>
+          {subtitle && <p className="hidden sm:block text-[11px] text-gray-500 leading-tight truncate">{subtitle}</p>}
         </div>
       </div>
 
       {/* Channel count badge */}
       {channelCount !== undefined && channelCount > 0 && (
-        <span className="hidden lg:inline-block bg-dark-600 text-accent-300 text-xs px-2.5 py-1 rounded-full font-medium shrink-0">
+        <span className="hidden lg:inline-block bg-dark-600 text-accent-300 text-[11px] px-2 py-0.5 rounded-full font-medium shrink-0">
           {channelCount.toLocaleString("fr-FR")} chaînes
         </span>
       )}
