@@ -63,10 +63,8 @@ export function Header({
 
       {/* Logo & Title */}
       <div className="flex items-center gap-2.5 min-w-0">
-        <div className="relative w-9 h-9 bg-gradient-to-br from-accent-500 to-accent-600 rounded-xl flex items-center justify-center shadow-lg shadow-accent-500/20 shrink-0">
-          <svg className="w-5 h-5 text-white" fill="currentColor" viewBox="0 0 24 24">
-            <path d="M8 5v14l11-7z" />
-          </svg>
+        <div className="relative w-9 h-9 shrink-0">
+          <img src="/logo.png" alt="StreamVault" className="w-full h-full object-contain" />
         </div>
         <div className="min-w-0">
           <h1 className="text-sm sm:text-base font-bold text-white leading-tight truncate">{title}</h1>
