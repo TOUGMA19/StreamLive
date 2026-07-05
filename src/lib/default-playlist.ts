@@ -7,7 +7,7 @@
 export const DEFAULT_PLAYLIST_NAME = "Ma Playlist";
 
 // 👇👇👇 REMPLACE TOUT LE CONTENU ENTRE LES BACKTICKS PAR TON FICHIER .m3u8 👇👇👇
-#EXTM3U
+export const DEFAULT_PLAYLIST_M3U = `#EXTM3U
 #EXTINF:-1 tvg-id="20MinutesTV.fr@SD",20 Minutes TV (1080p)
 https://live-20minutestv.digiteka.com/1961167769/index.m3u8
 #EXTINF:-1 tvg-id="ADNTVPlus.fr@SD",ADN TV+ (720p)
@@ -453,4 +453,5 @@ https://channels.trace.plus/Traceprod/URBAN_DOM_hd/index.m3u8
 #EXTINF:-1 tvg-id="France24.fr@Spanish",France 24 Spanish (720p)
 https://live-evg8.tv360.bitel.com.pe/bitel/france24SRT/playlist.m3u8
 
+`;
 // 👆👆👆 Colle ici le contenu complet de ton fichier .m3u / .m3u8 👆👆👆
