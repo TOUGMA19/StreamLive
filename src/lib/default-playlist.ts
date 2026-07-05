@@ -458,16 +458,6 @@ https://channels.trace.plus/Traceprod/URBAN_AFRIC_FR_hd/index.m3u8
 https://channels.trace.plus/Traceprod/URBAN_DOM_hd/index.m3u8
 #EXTINF:-1 tvg-id="France24.fr@Spanish",France 24 Spanish (720p)
 https://live-evg8.tv360.bitel.com.pe/bitel/france24SRT/playlist.m3u8
-#EXTINF:-1 tvg-id="Africa24English.fr@SD",Africa 24 English (1080p)
-https://edge20.vedge.infomaniak.com/livecast/ik:africa24english/manifest.m3u8
-#EXTINF:-1 tvg-id="Africa24Sport.fr@SD",Africa 24 Sport (1080p)
-https://africa24.vedge.infomaniak.com/livecast/ik:africa24sport/manifest.m3u8
-#EXTINF:-1 tvg-id="AfricanewsFrench.fr@SD",Africanews French (720p)
-https://cdn-euronews.akamaized.net/live/eds/africanews-fr/25050/index.m3u8
-#EXTINF:-1 tvg-id="AlpedHuezTV.fr@SD",Alpe d’Huez TV (720p) [Not 24/7]
-https://edge13.vedge.infomaniak.com/livecast/ik:adhtv/manifest.m3u8
-#EXTINF:-1 tvg-id="AngersTele.fr@SD",Angers Tele (180p)
-https://raw.githubusercontent.com/Sibprod/streams/main/ressources/dm/py/hls/angerstele.m3u8
 
 `;
 // 👆👆👆 Colle ici le contenu complet de ton fichier .m3u / .m3u8 👆👆👆
