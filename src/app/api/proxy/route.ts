@@ -385,7 +385,7 @@ export async function GET(request: NextRequest) {
   if (!isImage && /\.(ts|m4s|mp4|aac|ac3|vtt|key)(\?|$)/i.test(decodedUrl)) {
     const cached = segmentCache.get(decodedUrl);
     if (cached) {
-      return new NextResponse(cached, {
+      return new NextResponse(new Uint8Array(cached), {
         status: 200,
         headers: {
           "Content-Type": "video/MP2T",
