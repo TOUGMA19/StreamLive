@@ -6,13 +6,13 @@ export const dynamic = "force-dynamic";
 export const maxDuration = 60;
 
 /**
-╔══════════════════════════════════════════════════════════════════════════════╗
-║  STREAMVAULT — PROXY UNIVERSEL v3.0                                          ║
-║  Bypass : CORS · Geo · CloudFront · WAF · Cloudflare · TLS fp · DNS         ║
-║           HLS · Hotlink · Rate-limit · Token · IPv6 · HTTP/2 · Cache        ║
-║  Fallbacks : 8 profils headers · 6 CORS proxies · Wayback · Google cache    ║
-╚══════════════════════════════════════════════════════════════════════════════╝
-*/
+ * ╔══════════════════════════════════════════════════════════════════════════════╗
+ * ║  STREAMVAULT — PROXY UNIVERSEL v3.0                                          ║
+ * ║  Bypass : CORS · Geo · CloudFront · WAF · Cloudflare · TLS fp · DNS         ║
+ * ║           HLS · Hotlink · Rate-limit · Token · IPv6 · HTTP/2 · Cache        ║
+ * ║  Fallbacks : 8 profils headers · 6 CORS proxies · Wayback · Google cache    ║
+ * ╚══════════════════════════════════════════════════════════════════════════════╝
+ */
 
 // ─── Dispatcher HTTP tolérant (TLS permissif + pool keep-alive) ──────────────
 const tolerantDispatcher = new Agent({
@@ -48,10 +48,7 @@ class LRUCache<K, V> {
   constructor(private maxSize: number) {}
   get(key: K): V | undefined {
     const val = this.cache.get(key);
-    if (val !== undefined) {
-      this.cache.delete(key);
-      this.cache.set(key, val);
-    }
+    if (val !== undefined) { this.cache.delete(key); this.cache.set(key, val); }
     return val;
   }
   set(key: K, val: V): void {
@@ -117,9 +114,16 @@ const REGION_IPS: Record<string, string[]> = {
 };
 
 const ACCEPT_LANGUAGES = [
-  "en-US,en;q=0.9", "en-GB,en;q=0.9", "fr-FR,fr;q=0.9,en;q=0.8", "de-DE,de;q=0.9,en;q=0.8",
-  "es-ES,es;q=0.9,en;q=0.8", "it-IT,it;q=0.9,en;q=0.8", "pt-BR,pt;q=0.9,en;q=0.8",
-  "tr-TR,tr;q=0.9,en;q=0.8", "ar-SA,ar;q=0.9,en;q=0.8", "ja-JP,ja;q=0.9,en;q=0.8",
+  "en-US,en;q=0.9",
+  "en-GB,en;q=0.9",
+  "fr-FR,fr;q=0.9,en;q=0.8",
+  "de-DE,de;q=0.9,en;q=0.8",
+  "es-ES,es;q=0.9,en;q=0.8",
+  "it-IT,it;q=0.9,en;q=0.8",
+  "pt-BR,pt;q=0.9,en;q=0.8",
+  "tr-TR,tr;q=0.9,en;q=0.8",
+  "ar-SA,ar;q=0.9,en;q=0.8",
+  "ja-JP,ja;q=0.9,en;q=0.8",
   "en-US,en;q=0.9,fr;q=0.8,de;q=0.7,es;q=0.6",
 ];
 
@@ -130,11 +134,18 @@ const SEC_CH_UA = [
   `"Firefox";v="128"`,
 ];
 
+// Referers utilisés selon la stratégie
 const KNOWN_REFERERS = [
-  "https://www.google.com/", "https://www.youtube.com/", "https://www.facebook.com/",
-  "https://twitter.com/", "https://www.reddit.com/", "https://duckduckgo.com/", "https://www.bing.com/",
+  "https://www.google.com/",
+  "https://www.youtube.com/",
+  "https://www.facebook.com/",
+  "https://twitter.com/",
+  "https://www.reddit.com/",
+  "https://duckduckgo.com/",
+  "https://www.bing.com/",
 ];
 
+// Proxies CORS publics (dernier recours, côté serveur → serveur)
 const FALLBACK_PROXIES: Array<(u: string) => string> = [
   (u) => `https://api.allorigins.win/raw?url=${encodeURIComponent(u)}`,
   (u) => `https://corsproxy.io/?${encodeURIComponent(u)}`,
@@ -144,6 +155,7 @@ const FALLBACK_PROXIES: Array<(u: string) => string> = [
   (u) => `https://proxy.cors.sh/${u}`,
 ];
 
+// Archive fallback pour playlists uniquement
 function archiveFallbacks(u: string): string[] {
   return [
     `https://web.archive.org/web/2024/${u}`,
@@ -163,17 +175,22 @@ function pickFromRegion(targetUrl: string): string {
       return pick(ips);
     }
   }
-  return pick(REGION_IPS.us);
+  return pick(REGION_IPS.us); // Défaut US (accès le plus large)
 }
 
+// Détecte un contenu "challenge Cloudflare / Just a moment / bot check"
 function looksBlocked(body: string, contentType: string): boolean {
   if (!contentType.includes("text/html") && !contentType.includes("text/plain")) return false;
   const s = body.slice(0, 4096).toLowerCase();
   return (
-    s.includes("just a moment") || s.includes("checking your browser") ||
-    s.includes("cf-browser-verification") || s.includes("attention required") ||
-    s.includes("access denied") || (s.includes("cloudflare") && s.includes("challenge")) ||
-    s.includes("bot detection") || s.includes("captcha")
+    s.includes("just a moment") ||
+    s.includes("checking your browser") ||
+    s.includes("cf-browser-verification") ||
+    s.includes("attention required") ||
+    s.includes("access denied") ||
+    s.includes("cloudflare") && s.includes("challenge") ||
+    s.includes("bot detection") ||
+    s.includes("captcha")
   );
 }
 
@@ -186,7 +203,7 @@ function buildHeaders(
 ): Record<string, string> {
   let origin: string;
   try { origin = new URL(targetUrl).origin; } catch { origin = "https://www.google.com"; }
-  
+
   const forwardedIp = pickFromRegion(targetUrl);
   const ua = userOverrides.ua || (attempt < USER_AGENTS.length ? USER_AGENTS[attempt] : pick(USER_AGENTS));
   const lang = pick(ACCEPT_LANGUAGES);
@@ -218,6 +235,7 @@ function buildHeaders(
     "Forwarded": `for=${forwardedIp};proto=https;by=${forwardedIp}`,
   };
 
+  // Headers spécifiques aux navigateurs (pas les players)
   if (!isMediaPlayer) {
     h["Upgrade-Insecure-Requests"] = "1";
     h["Sec-Fetch-Dest"] = isImage ? "image" : "empty";
@@ -231,10 +249,12 @@ function buildHeaders(
     h["Priority"] = "u=1, i";
   }
 
+  // Cookies stockés
   const domain = getDomain(targetUrl);
   const cookies = cookieJar.get(domain);
   if (cookies) h["Cookie"] = cookies;
 
+  // Stratégies Referer/Origin par tentative
   if (userOverrides.referer) {
     h["Referer"] = userOverrides.referer;
     if (userOverrides.origin) h["Origin"] = userOverrides.origin;
@@ -256,6 +276,7 @@ function buildHeaders(
     h["X-Requested-With"] = "XMLHttpRequest";
     h["X-Request-ID"] = crypto.randomUUID();
   }
+
   return h;
 }
 
@@ -275,7 +296,7 @@ function rewriteM3U8(content: string, manifestUrl: string): string {
   const proxyBase = `/api/proxy?url=`;
   const wrap = (u: string) => proxyBase + encodeURIComponent(resolveUrl(u, baseUrl));
   const rewriteUri = (line: string) => line.replace(/URI="([^"]+)"/gi, (_m, uri: string) => `URI="${wrap(uri)}"`);
-  
+
   return content.split("\n").map((line) => {
     const t = line.trim();
     if (!t) return line;
@@ -311,7 +332,7 @@ async function warmup(targetUrl: string): Promise<void> {
 async function fetchViaFallback(targetUrl: string, isM3U8: boolean): Promise<Response | null> {
   const candidates = [...FALLBACK_PROXIES.map((f) => f(targetUrl))];
   if (isM3U8) candidates.push(...archiveFallbacks(targetUrl));
-  
+
   for (const proxyUrl of candidates) {
     try {
       const res = await undiciFetch(proxyUrl, {
@@ -319,9 +340,9 @@ async function fetchViaFallback(targetUrl: string, isM3U8: boolean): Promise<Res
         signal: AbortSignal.timeout(15000),
       });
       if (res.ok) {
+        // undici Response -> web Response
         const buf = Buffer.from(await res.arrayBuffer());
-        // ✅ FIX: Conversion explicite en Uint8Array pour l'API Web
-        return new Response(new Uint8Array(buf), { status: res.status, headers: Object.fromEntries(res.headers) });
+        return new Response(buf, { status: res.status, headers: Object.fromEntries(res.headers) });
       }
     } catch { continue; }
   }
@@ -340,7 +361,7 @@ export async function GET(request: NextRequest) {
 
   let decodedUrl: string;
   try { decodedUrl = decodeURIComponent(targetUrl); } catch { decodedUrl = targetUrl; }
-
+  // Auto-upgrade http→https si le port n'est pas explicite
   const httpsAlt = decodedUrl.startsWith("http://") && !/:\d+\//.test(decodedUrl)
     ? decodedUrl.replace(/^http:\/\//, "https://")
     : null;
@@ -364,7 +385,6 @@ export async function GET(request: NextRequest) {
   if (!isImage && /\.(ts|m4s|mp4|aac|ac3|vtt|key)(\?|$)/i.test(decodedUrl)) {
     const cached = segmentCache.get(decodedUrl);
     if (cached) {
-      // ✅ FIX: Conversion explicite en Uint8Array
       return new NextResponse(new Uint8Array(cached), {
         status: 200,
         headers: {
@@ -382,14 +402,16 @@ export async function GET(request: NextRequest) {
   let lastStatus = 0;
   let lastError = "";
 
+  // Warmup async (n'attend pas la première fois)
   warmup(decodedUrl).catch(() => {});
 
   const urlCandidates = httpsAlt ? [decodedUrl, httpsAlt] : [decodedUrl];
-  
+
   for (let attempt = 0; attempt < maxAttempts; attempt++) {
     const activeUrl = urlCandidates[attempt % urlCandidates.length];
     try {
       if (attempt > 0) {
+        // Backoff exponentiel avec jitter
         const jitter = Math.random() * 500 + Math.pow(1.7, attempt) * 120;
         await sleep(Math.min(jitter, 6000));
       }
@@ -407,6 +429,7 @@ export async function GET(request: NextRequest) {
 
       lastStatus = response.status;
 
+      // Cookies Set-Cookie
       const setCookie = response.headers.get("set-cookie");
       if (setCookie) {
         const d = getDomain(activeUrl);
@@ -414,6 +437,7 @@ export async function GET(request: NextRequest) {
         cookieJar.set(d, existing ? `${existing}; ${setCookie}` : setCookie);
       }
 
+      // Codes à retry
       if ([403, 401, 451, 503, 429, 502, 504, 520, 521, 522, 523, 524, 525, 526, 527].includes(response.status)) {
         if (attempt < maxAttempts - 1) continue;
       }
@@ -429,12 +453,14 @@ export async function GET(request: NextRequest) {
         contentType.includes("mpegurl") || contentType.includes("x-mpegurl") ||
         contentType.includes("vnd.apple.mpegurl");
 
+      // Détection HTML de challenge -> retry
       if ((contentType.includes("text/html") || contentType.includes("text/plain")) && !isImage) {
         const text = await response.text();
         if (looksBlocked(text, contentType) && attempt < maxAttempts - 1) {
           lastError = "Challenge/bot detected";
           continue;
         }
+        // Peut-être un M3U8 renvoyé en text/plain
         if (text.startsWith("#EXTM3U")) {
           const rewritten = rewriteM3U8(text, activeUrl);
           manifestCache.set(decodedUrl, { content: rewritten, timestamp: Date.now() });
@@ -447,6 +473,7 @@ export async function GET(request: NextRequest) {
             },
           });
         }
+        // Sinon renvoi brut
         return new NextResponse(text, {
           status: response.status,
           headers: {
@@ -457,6 +484,7 @@ export async function GET(request: NextRequest) {
         });
       }
 
+      // HLS Manifest
       if (isM3U8) {
         const text = await response.text();
         const rewritten = rewriteM3U8(text, activeUrl);
@@ -475,10 +503,10 @@ export async function GET(request: NextRequest) {
         });
       }
 
+      // Images
       if (isImage) {
         const buf = Buffer.from(await response.arrayBuffer());
-        // ✅ FIX: Conversion explicite en Uint8Array
-        return new NextResponse(new Uint8Array(buf), {
+        return new NextResponse(buf, {
           status: response.status,
           headers: {
             "Content-Type": contentType || "image/png",
@@ -489,12 +517,12 @@ export async function GET(request: NextRequest) {
         });
       }
 
+      // Segments — cache mémoire (uniquement les petits)
       const isSegment = /\.(ts|m4s|aac|ac3|key|vtt)(\?|$)/i.test(activeUrl);
       if (isSegment && response.ok) {
         const buffer = Buffer.from(await response.arrayBuffer());
         if (buffer.length < 4 * 1024 * 1024) segmentCache.set(decodedUrl, buffer);
-        // ✅ FIX: Conversion explicite en Uint8Array
-        return new NextResponse(new Uint8Array(buffer), {
+        return new NextResponse(buffer, {
           status: response.status,
           headers: {
             "Content-Type": contentType || "video/MP2T",
@@ -507,22 +535,22 @@ export async function GET(request: NextRequest) {
         });
       }
 
+      // Stream générique (gros mp4 / range)
       const responseHeaders = new Headers();
       responseHeaders.set("Access-Control-Allow-Origin", "*");
       responseHeaders.set("Access-Control-Allow-Methods", "GET, OPTIONS, HEAD");
       responseHeaders.set("Access-Control-Allow-Headers", "*");
       responseHeaders.set("Access-Control-Expose-Headers", "Content-Length, Content-Range, Accept-Ranges");
       responseHeaders.set("X-Proxy-Version", "3.0");
-      
       for (const h of ["content-type", "content-length", "content-range", "accept-ranges", "cache-control", "etag", "last-modified"]) {
         const val = response.headers.get(h);
         if (val) responseHeaders.set(h, val);
       }
-
       return new NextResponse(response.body as unknown as ReadableStream, {
         status: response.status,
         headers: responseHeaders,
       });
+
     } catch (err) {
       lastError = err instanceof Error ? err.message : "Network error";
       if (attempt < maxAttempts - 1) continue;
@@ -532,7 +560,6 @@ export async function GET(request: NextRequest) {
   // ─── Dernier recours : proxies CORS publics + archive ──────────────────
   const isM3U8Final = decodedUrl.includes(".m3u");
   const fallback = await fetchViaFallback(decodedUrl, isM3U8Final);
-  
   if (fallback && fallback.ok) {
     if (isM3U8Final) {
       const text = await fallback.text();
@@ -582,7 +609,6 @@ export async function OPTIONS() {
 export async function HEAD(request: NextRequest) {
   const targetUrl = request.nextUrl.searchParams.get("url");
   if (!targetUrl) return new NextResponse(null, { status: 400 });
-  
   try {
     const decodedUrl = decodeURIComponent(targetUrl);
     const headers = buildHeaders(decodedUrl, 0, false);
@@ -591,7 +617,6 @@ export async function HEAD(request: NextRequest) {
       headers,
       signal: AbortSignal.timeout(10000),
     });
-    
     const responseHeaders = new Headers();
     responseHeaders.set("Access-Control-Allow-Origin", "*");
     for (const h of ["content-type", "content-length", "accept-ranges", "last-modified", "etag"]) {
