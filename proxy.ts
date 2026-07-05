@@ -3,12 +3,13 @@ import type { NextRequest } from "next/server";
 
 /**
  * ╔══════════════════════════════════════════════════════════════════════════════╗
- * ║  STREAMVAULT — MIDDLEWARE ANTI-DÉTECTION                                    ║
+ * ║  STREAMVAULT — PROXY ANTI-DÉTECTION                                          ║
  * ║  Sécurise les headers, masque la stack technique, ajoute CSP permissif       ║
  * ╚══════════════════════════════════════════════════════════════════════════════╝
  */
 
-export function middleware(request: NextRequest) {
+// Renommé de 'middleware' à 'proxy'
+export function proxy(request: NextRequest) {
   const response = NextResponse.next();
 
   // ─── Security Headers ───────────────────────────────────────────────────────
