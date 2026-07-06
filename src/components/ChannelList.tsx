@@ -33,6 +33,11 @@ export function ChannelList({
   const [scrollTop, setScrollTop] = useState(0);
   const [viewportHeight, setViewportHeight] = useState(600);
   const [focusedIndex, setFocusedIndex] = useState(0);
+  // Anti-rebond OK/Entrée : certaines télécommandes IR/BT émettent l'appui
+  // plusieurs fois (keydown répété, keydown+click, keydown+keypress). Sans
+  // ce garde, "un appui OK" ouvrait la lecture deux fois de suite.
+  const lastActivateAtRef = useRef(0);
+
 
   // Mesure la hauteur réellement disponible (et la ré-évalue si la fenêtre change)
   useEffect(() => {
@@ -72,17 +77,31 @@ export function ChannelList({
     if (!el || channels.length === 0) return;
     const itemTop = focusedIndex * ITEM_HEIGHT;
     const itemBottom = itemTop + ITEM_HEIGHT;
+    let nextScrollTop = el.scrollTop;
     if (itemTop < el.scrollTop) {
-      el.scrollTop = itemTop;
-      setScrollTop(itemTop);
+      nextScrollTop = itemTop;
     } else if (itemBottom > el.scrollTop + el.clientHeight) {
-      const nextScrollTop = itemBottom - el.clientHeight;
+      nextScrollTop = itemBottom - el.clientHeight;
+    }
+    if (nextScrollTop !== el.scrollTop) {
       el.scrollTop = nextScrollTop;
       setScrollTop(nextScrollTop);
     }
-    requestAnimationFrame(() => {
-      el.querySelector<HTMLElement>(`[data-channel-index="${focusedIndex}"]`)?.focus({ preventScroll: true });
+    // Double rAF : le 1er laisse React re-render la liste virtualisée avec
+    // le nouveau scrollTop, le 2nd garantit que l'élément est bien dans le
+    // DOM avant d'appeler focus() — indispensable sur télécommande où les
+    // ArrowDown/ArrowUp enchaînent des index hors de la fenêtre visible.
+    let raf1 = 0;
+    const raf2Container = { id: 0 };
+    raf1 = requestAnimationFrame(() => {
+      raf2Container.id = requestAnimationFrame(() => {
+        el.querySelector<HTMLElement>(`[data-channel-index="${focusedIndex}"]`)?.focus({ preventScroll: true });
+      });
     });
+    return () => {
+      cancelAnimationFrame(raf1);
+      cancelAnimationFrame(raf2Container.id);
+    };
   }, [focusedIndex, channels.length]);
 
   const handleScroll = useCallback((e: React.UIEvent<HTMLDivElement>) => {
@@ -95,12 +114,30 @@ export function ChannelList({
   }, [channels.length]);
 
   const activateChannel = useCallback((channel: Channel, fullscreen = false) => {
+    // Anti-rebond : si un OK a été traité il y a moins de 400 ms, on ignore.
+    const now = Date.now();
+    if (now - lastActivateAtRef.current < 400) return;
+    lastActivateAtRef.current = now;
     if (fullscreen && onPlayFullscreen) {
       onPlayFullscreen(channel);
       return;
     }
     onPlay(channel);
   }, [onPlay, onPlayFullscreen]);
+
+  // Si la liste reçoit le focus (ex: retour depuis la vidéo) sans qu'aucun
+  // item ne soit encore focusable, on refocalise sur l'index courant afin
+  // que les flèches de la télécommande fonctionnent de nouveau.
+  const handleListFocus = useCallback(() => {
+    const el = listRef.current;
+    if (!el) return;
+    const active = document.activeElement;
+    if (active && el.contains(active) && active !== el) return;
+    requestAnimationFrame(() => {
+      el.querySelector<HTMLElement>(`[data-channel-index="${focusedIndex}"]`)?.focus({ preventScroll: true });
+    });
+  }, [focusedIndex]);
+
 
   const handleListKeyDown = useCallback((e: React.KeyboardEvent<HTMLDivElement>) => {
     const keyCode = e.keyCode || (e.nativeEvent as unknown as { which?: number }).which || 0;
@@ -185,10 +222,13 @@ export function ChannelList({
 
       <div
         ref={listRef}
-        className="flex-1 overflow-y-auto relative"
+        className="flex-1 overflow-y-auto relative outline-none"
+        tabIndex={-1}
         onScroll={handleScroll}
+        onFocus={handleListFocus}
         onKeyDownCapture={handleListKeyDown}
       >
+
         {channels.length === 0 ? (
           <div className="p-8 text-center">
             <div className="text-4xl mb-3">🔍</div>
@@ -214,13 +254,13 @@ export function ChannelList({
                   onClick={() => activateChannel(channel)}
                   onDoubleClick={() => onPlayFullscreen?.(channel)}
                   onKeyDown={(e) => {
-                    if (e.key === "Enter" || e.key === " ") {
-                      e.preventDefault();
-                      e.stopPropagation();
-                      activateChannel(channel, true);
-                    }
+                    // Le container gère déjà Enter/Space via onKeyDownCapture
+                    // (avec anti-rebond). On ne fait RIEN ici pour éviter le
+                    // double déclenchement (activation deux fois d'affilée).
+                    void e;
                   }}
                   style={{ position: "absolute", top: actualIndex * ITEM_HEIGHT, left: 0, right: 0, height: ITEM_HEIGHT }}
+
                   className={`channel-item focusable ${isSelected ? "active" : ""} flex items-center gap-3 px-3 cursor-pointer`}
                 >
                   <div className="w-10 h-10 md:w-9 md:h-9 rounded-lg overflow-hidden bg-dark-700 flex items-center justify-center shrink-0 border border-dark-600/30">
