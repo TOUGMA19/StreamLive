@@ -11,6 +11,7 @@ interface VideoPlayerProps {
   onPrevChannel?: () => void;
   onBackMobile?: () => void;
   fullscreenSignal?: number;
+  onRequestFullscreen?: () => void;
 }
 
 interface QualityLevel {
@@ -19,7 +20,7 @@ interface QualityLevel {
   bitrate: number;
 }
 
-export function VideoPlayer({ channel, onNextChannel, onPrevChannel, onBackMobile, fullscreenSignal }: VideoPlayerProps) {
+export function VideoPlayer({ channel, onNextChannel, onPrevChannel, onBackMobile, fullscreenSignal, onRequestFullscreen }: VideoPlayerProps) {
   const videoRef = useRef<HTMLVideoElement>(null);
   const hlsRef = useRef<Hls | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -414,7 +415,7 @@ export function VideoPlayer({ channel, onNextChannel, onPrevChannel, onBackMobil
       onMouseMove={resetHideTimer}
       onMouseLeave={() => { if (isPlaying) { setShowControls(false); setShowQualityMenu(false); } }}>
 
-      <div className="flex-1 relative flex items-center justify-center" onClick={togglePlay}>
+      <div className="flex-1 relative flex items-center justify-center" onClick={togglePlay} onDoubleClick={(e) => { e.stopPropagation(); if (onRequestFullscreen) onRequestFullscreen(); else enterFullscreen(); }}>
         <video ref={videoRef} className={`w-full h-full ${aspectClass}`} playsInline autoPlay crossOrigin="anonymous" />
 
         {/* Loading overlay */}
