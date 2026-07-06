@@ -260,43 +260,89 @@ export function VideoPlayer({ channel, onNextChannel, onPrevChannel, onBackMobil
     } catch { /* ignore */ }
   }, []);
 
-  // Entre en plein écran (sans basculer si déjà en plein écran) — utilisé
-  // pour le double-clic sur une chaîne dans la liste.
+  // Entre en plein écran (sans basculer si déjà en plein écran).
+  // Compatible navigateurs modernes + TV (Tizen/WebOS) + Safari (préfixes
+  // webkit) + fallback sur l'élément <video> si le conteneur refuse.
   const enterFullscreen = useCallback(async () => {
     const container = containerRef.current;
-    if (!container || document.fullscreenElement) return;
-    try {
-      await container.requestFullscreen();
-    } catch { /* ignore */ }
+    const video = videoRef.current;
+    if (document.fullscreenElement || (document as any).webkitFullscreenElement) return;
+
+    type FsEl = HTMLElement & {
+      webkitRequestFullscreen?: () => Promise<void> | void;
+      webkitEnterFullscreen?: () => Promise<void> | void; // iOS Safari <video>
+      msRequestFullscreen?: () => Promise<void> | void;
+      mozRequestFullScreen?: () => Promise<void> | void;
+    };
+
+    const request = async (el: FsEl | null): Promise<boolean> => {
+      if (!el) return false;
+      try {
+        if (el.requestFullscreen) { await el.requestFullscreen(); return true; }
+        if (el.webkitRequestFullscreen) { await el.webkitRequestFullscreen(); return true; }
+        if (el.msRequestFullscreen) { await el.msRequestFullscreen(); return true; }
+        if (el.mozRequestFullScreen) { await el.mozRequestFullScreen(); return true; }
+        if (el.webkitEnterFullscreen) { await el.webkitEnterFullscreen(); return true; }
+      } catch { /* ignore */ }
+      return false;
+    };
+
+    if (await request(container as FsEl)) return;
+    // Fallback : plein écran sur la <video> directement (Safari iOS, WebViews)
+    await request(video as unknown as FsEl);
   }, []);
 
   const lastFullscreenSignalRef = useRef(0);
-useEffect(() => {
-  if (fullscreenSignal && fullscreenSignal !== lastFullscreenSignalRef.current) {
+  useEffect(() => {
+    if (!fullscreenSignal || fullscreenSignal === lastFullscreenSignalRef.current) return;
     lastFullscreenSignalRef.current = fullscreenSignal;
     const video = videoRef.current;
-    const goFullscreen = () => enterFullscreen();
+    if (!video) { enterFullscreen(); return; }
 
-    if (video && video.paused === false && video.readyState >= 2) {
-      // Déjà en cours de lecture => plein écran immédiat
-      goFullscreen();
+    // Si la lecture est déjà en cours et démarrée => plein écran immédiat.
+    if (!video.paused && video.readyState >= 2) {
+      enterFullscreen();
       return;
     }
-    if (!video) { goFullscreen(); return; }
 
-    // Attendre le vrai démarrage de la lecture (valable pour tous les
-    // formats : HLS, MP4 direct, etc.), avec un filet de sécurité de 4s
-    // au cas où l'événement "playing" ne se déclenche jamais (flux en erreur).
-    const onPlaying = () => { cleanup(); goFullscreen(); };
-    const timeout = setTimeout(() => { cleanup(); goFullscreen(); }, 4000);
+    // Sinon : on force explicitement la lecture (autoplay parfois bloqué),
+    // puis on attend le premier signal "ça joue" (playing) ou à défaut
+    // "canplay/loadeddata". Filet de sécurité : 5 s puis on tente le
+    // plein écran de toute façon.
+    // Valable pour TOUS les formats (HLS via hls.js, MP4 direct, MPEG-TS…).
+    let done = false;
+    const goFullscreen = () => {
+      if (done) return;
+      done = true;
+      cleanup();
+      enterFullscreen();
+    };
     const cleanup = () => {
       clearTimeout(timeout);
-      video.removeEventListener("playing", onPlaying);
+      video.removeEventListener("playing", goFullscreen);
+      video.removeEventListener("canplay", goFullscreen);
+      video.removeEventListener("loadeddata", goFullscreen);
     };
-    video.addEventListener("playing", onPlaying, { once: true });
+    const timeout = setTimeout(goFullscreen, 5000);
+    video.addEventListener("playing", goFullscreen, { once: true });
+    video.addEventListener("canplay", goFullscreen, { once: true });
+    video.addEventListener("loadeddata", goFullscreen, { once: true });
+
+    // Tenter de forcer la lecture. Si le navigateur refuse (autoplay policy),
+    // on retente en muet — mieux vaut du son coupé qu'un écran figé.
+    const tryPlay = video.play();
+    if (tryPlay && typeof tryPlay.catch === "function") {
+      tryPlay.catch(() => {
+        try {
+          video.muted = true;
+          video.play().catch(() => { /* on laissera le timeout gérer */ });
+        } catch { /* ignore */ }
+      });
+    }
+
     return cleanup;
-  }
-}, [fullscreenSignal, enterFullscreen]);
+  }, [fullscreenSignal, enterFullscreen]);
+
 
   const togglePip = useCallback(async () => {
     const video = videoRef.current;
@@ -350,10 +396,16 @@ useEffect(() => {
   }, [togglePlay, toggleFullscreen, togglePip, toggleMute, cycleAspectRatio, handleVolumeChange, volume, onNextChannel, onPrevChannel, handleRetry, isPlaying, resetHideTimer, startPlayback]);
 
   useEffect(() => {
-    const h = () => setIsFullscreen(!!document.fullscreenElement);
+    const h = () =>
+      setIsFullscreen(!!(document.fullscreenElement || (document as any).webkitFullscreenElement));
     document.addEventListener("fullscreenchange", h);
-    return () => document.removeEventListener("fullscreenchange", h);
+    document.addEventListener("webkitfullscreenchange", h);
+    return () => {
+      document.removeEventListener("fullscreenchange", h);
+      document.removeEventListener("webkitfullscreenchange", h);
+    };
   }, []);
+
 
   const aspectClass = aspectRatio === "contain" ? "object-contain" : aspectRatio === "cover" ? "object-cover" : "object-fill";
 
