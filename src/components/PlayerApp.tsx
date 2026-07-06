@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { PlaylistManager } from "./PlaylistManager";
 import { CategorySidebar } from "./CategorySidebar";
 import { ChannelList } from "./ChannelList";
@@ -16,6 +16,7 @@ import { registerBackHandler } from "@/lib/back-handler";
 type View = "playlists" | "player";
 
 export function PlayerApp() {
+  const appRef = useRef<HTMLDivElement>(null);
   const [view, setView] = useState<View>("playlists");
   const [playlists, setPlaylists] = useState<Playlist[]>([]);
   const [selectedPlaylist, setSelectedPlaylist] = useState<Playlist | null>(null);
@@ -178,7 +179,12 @@ export function PlayerApp() {
     }
   };
 
-  // Double-clic sur une chaîne : lance la lecture ET passe en plein écran
+  // Sélection (Entrée télécommande / double-clic) : lance la lecture, le
+  // passage en plein écran est déclenché par VideoPlayer lui-même UNE FOIS
+  // que la lecture a réellement démarré (voir l'effet sur `fullscreenSignal`
+  // dans VideoPlayer.tsx, qui attend l'événement natif "playing").
+  // ⚠️ Ne jamais appeler requestFullscreen() ICI avant playChannel() : ça
+  // inverserait l'ordre voulu (plein écran d'abord, lecture ensuite).
   const [fullscreenSignal, setFullscreenSignal] = useState(0);
   const playChannelFullscreen = async (channel: Channel) => {
     await playChannel(channel);
@@ -241,7 +247,7 @@ export function PlayerApp() {
 
   if (view === "playlists") {
     return (
-      <div className="h-[100dvh] flex flex-col overflow-hidden">
+      <div ref={appRef} className="h-[100dvh] flex flex-col overflow-hidden bg-dark-950">
         <Header onBack={null} title="StreamVault" subtitle="IPTV Player — Anti-blocage intégré" />
         <PlaylistManager
           playlists={playlists}
@@ -261,7 +267,7 @@ export function PlayerApp() {
   const watching = !!selectedChannel;
 
   return (
-    <div className="h-[100dvh] flex flex-col overflow-hidden relative">
+    <div ref={appRef} className="h-[100dvh] flex flex-col overflow-hidden relative bg-dark-950">
       <Header
         onBack={goBack}
         title={selectedPlaylist?.name || "Player"}
