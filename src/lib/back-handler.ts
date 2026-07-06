@@ -46,9 +46,17 @@ export function registerBackHandler(handler: BackHandler): () => void {
   } catch { /* ignore */ }
 
   let disposed = false;
+  // Anti-rebond : un même appui télécommande/bouton back peut déclencher
+  // plusieurs événements quasi simultanés (popstate + keydown, ou double
+  // signal matériel). Sans ce garde, "un retour" pouvait fermer deux vues
+  // d'un coup (ex: sortir du plein écran ET revenir à la liste).
+  let lastRunAt = 0;
 
   const runHandler = async () => {
     if (disposed) return false;
+    const now = Date.now();
+    if (now - lastRunAt < 450) return true; // on absorbe sans re-exécuter
+    lastRunAt = now;
     try {
       const consumed = await handler();
       return consumed !== false;
