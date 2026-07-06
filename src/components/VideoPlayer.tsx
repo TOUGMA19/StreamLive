@@ -409,8 +409,8 @@ export function VideoPlayer({ channel, onNextChannel, onPrevChannel, onBackMobil
           <div className="flex items-center justify-between mb-2.5">
             <div className="flex items-center gap-2.5">
               {onBackMobile && (
-                <button onClick={(e) => { e.stopPropagation(); onBackMobile(); }} className="p-1.5 -ml-1.5 text-gray-400 hover:text-white transition-colors rounded-lg hover:bg-white/5 md:hidden" title="Retour">
-                  <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" /></svg>
+                <button onClick={(e) => { e.stopPropagation(); onBackMobile(); }} className="focusable p-2 -ml-1.5 text-gray-300 hover:text-white transition-colors rounded-lg hover:bg-white/10" title="Retour (Échap / Retour télécommande)">
+                  <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" /></svg>
                 </button>
               )}
               <div className="flex items-center gap-1.5">
