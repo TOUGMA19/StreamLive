@@ -10,7 +10,8 @@ import { ToastContainer } from "./Toast";
 import type { Playlist, Channel, Toast } from "@/lib/types";
 import * as store from "@/lib/store";
 import { parseM3U } from "@/lib/m3u-parser";
-import { DEFAULT_PLAYLIST_M3U, DEFAULT_PLAYLIST_NAME, DEFAULT_PLAYLIST_VERSION } from "@/lib/default-playlist";
+import { DEFAULT_PLAYLIST_M3U, DEFAULT_PLAYLIST_NAME } from "@/lib/default-playlist";
+import { registerBackHandler } from "@/lib/back-handler";
 
 type View = "playlists" | "player";
 
@@ -47,82 +48,56 @@ export function PlayerApp() {
     }
   }, []);
 
-  // Charge / met à jour la playlist par défaut (src/lib/default-playlist.ts)
-  // à chaque ouverture de l'appli, si la version a changé depuis le dernier
-  // déploiement (voir DEFAULT_PLAYLIST_VERSION). Les favoris existants sont
-  // conservés (appariés par nom de chaîne).
-  const syncDefaultPlaylist = useCallback(async () => {
+  // Charge la playlist par défaut (src/lib/default-playlist.ts) au tout
+  // premier lancement, uniquement si aucune playlist n'existe encore.
+  const seedDefaultPlaylist = useCallback(async () => {
     if (typeof window === "undefined") return;
-
-    const storedVersion = localStorage.getItem("default_playlist_version");
-    if (storedVersion === DEFAULT_PLAYLIST_VERSION) return; // déjà à jour
+    if (localStorage.getItem("default_playlist_seeded")) return;
+    localStorage.setItem("default_playlist_seeded", "1");
 
     try {
+      const existing = await store.getAllPlaylists();
+      if (existing.length > 0) return; // l'utilisateur a déjà des playlists
+
       const parsed = parseM3U(DEFAULT_PLAYLIST_M3U);
       if (parsed.length === 0) return; // placeholder pas encore rempli
 
       const now = new Date().toISOString();
-      const existing = await store.getAllPlaylists();
-      const defaultPlaylist = existing.find((p) => p.isDefault);
-
-      // Conserve les favoris déjà cochés par l'utilisateur (par nom de chaîne)
-      const favNames = new Set<string>();
-      if (defaultPlaylist) {
-        const oldChannels = await store.getChannels(defaultPlaylist.id);
-        oldChannels.filter((c) => c.isFavorite).forEach((c) => favNames.add(c.name));
-      }
-
-      let playlistId: number;
-      if (defaultPlaylist) {
-        // Playlist par défaut déjà présente : on remplace juste ses chaînes
-        await store.deleteChannelsByPlaylist(defaultPlaylist.id);
-        playlistId = defaultPlaylist.id;
-        await store.updatePlaylist(playlistId, {
-          channelCount: parsed.length,
-          updatedAt: now,
-        });
-      } else {
-        // Premier lancement : on crée la playlist par défaut
-        const playlist = await store.addPlaylist({
-          name: DEFAULT_PLAYLIST_NAME,
-          url: null,
-          type: "m3u",
-          xtreamHost: null,
-          xtreamUsername: null,
-          xtreamPassword: null,
-          channelCount: parsed.length,
-          createdAt: now,
-          updatedAt: now,
-          isDefault: true,
-        });
-        playlistId = playlist.id;
-      }
+      const playlist = await store.addPlaylist({
+        name: DEFAULT_PLAYLIST_NAME,
+        url: null,
+        type: "m3u",
+        xtreamHost: null,
+        xtreamUsername: null,
+        xtreamPassword: null,
+        channelCount: parsed.length,
+        createdAt: now,
+        updatedAt: now,
+        isDefault: true,
+      });
 
       const channels = parsed.map((ch) => ({
-        playlistId,
+        playlistId: playlist.id,
         name: ch.name,
         url: ch.url,
         logo: ch.logo,
         group: ch.group || "Sans catégorie",
         tvgId: ch.tvgId,
         tvgName: ch.tvgName,
-        isFavorite: favNames.has(ch.name),
+        isFavorite: false,
       }));
-      await store.addChannels(playlistId, channels);
-
-      localStorage.setItem("default_playlist_version", DEFAULT_PLAYLIST_VERSION);
+      await store.addChannels(playlist.id, channels);
     } catch (err) {
-      console.error("Échec de la synchronisation de la playlist par défaut :", err);
+      console.error("Échec du chargement de la playlist par défaut :", err);
     }
   }, []);
 
   useEffect(() => {
     (async () => {
-      await syncDefaultPlaylist();
+      await seedDefaultPlaylist();
       await fetchPlaylists();
     })();
-  }, [syncDefaultPlaylist, fetchPlaylists]);
-
+  }, [seedDefaultPlaylist, fetchPlaylists]);
 
   // Open a playlist
   const openPlaylist = async (playlist: Playlist) => {
@@ -237,21 +212,32 @@ export function PlayerApp() {
     fetchPlaylists();
   };
 
-  // Escape key to go back
+  // Retour universel (Escape/Backspace/GoBack + Android Capacitor +
+  // télécommandes Tizen/WebOS + geste back Android). Ferme d'abord le
+  // player, puis la vue player, puis laisse quitter l'app.
   useEffect(() => {
-    const handler = (e: KeyboardEvent) => {
-      if (
-        e.key === "Escape" &&
-        view === "player" &&
-        !(e.target as HTMLElement).closest("input")
-      ) {
-        if (!document.fullscreenElement) goBack();
+    const dispose = registerBackHandler(async () => {
+      // 1) Si on est en plein écran vidéo => sortir du plein écran
+      if (typeof document !== "undefined" && document.fullscreenElement) {
+        try { await document.exitFullscreen(); } catch { /* ignore */ }
+        return true;
       }
-    };
-    window.addEventListener("keydown", handler);
-    return () => window.removeEventListener("keydown", handler);
+      // 2) Si une chaîne est en lecture => revenir à la liste
+      if (view === "player" && selectedChannel) {
+        setSelectedChannel(null);
+        return true;
+      }
+      // 3) Si on est dans le player (liste ouverte) => revenir aux playlists
+      if (view === "player") {
+        goBack();
+        return true;
+      }
+      // 4) Sinon : rien à fermer, laisser l'OS quitter
+      return false;
+    });
+    return dispose;
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [view]);
+  }, [view, selectedChannel]);
 
   if (view === "playlists") {
     return (
@@ -268,50 +254,49 @@ export function PlayerApp() {
     );
   }
 
-  // Sur mobile/tablette (< md), on n'a pas la place pour 3 colonnes : on affiche soit
-  // la liste (catégories + chaînes), soit le lecteur plein écran, jamais les deux.
-  const mobileWatching = !!selectedChannel;
+  // Dès qu'une chaîne est choisie, on affiche le player en OVERLAY plein
+  // écran, quel que soit le format (mobile, tablette, TV). C'est ce qui
+  // rend "l'écran de lecture" visible sur TV — l'ancien layout 3 colonnes
+  // écrasait le player dans un petit panneau à droite.
+  const watching = !!selectedChannel;
 
   return (
-    <div className="h-[100dvh] flex flex-col overflow-hidden">
-      <div className={mobileWatching ? "hidden md:block" : "block"}>
-        <Header
-          onBack={goBack}
-          title={selectedPlaylist?.name || "Player"}
-          subtitle={selectedPlaylist?.type === "xtream" ? "Xtream Codes" : "M3U"}
-          searchQuery={searchQuery}
-          onSearchChange={setSearchQuery}
-          showFavorites={showFavorites}
-          onToggleFavorites={() => {
-            setShowFavorites(!showFavorites);
-            setShowRecent(false);
-          }}
-          showRecent={showRecent}
-          onToggleRecent={() => {
-            setShowRecent(!showRecent);
-            setShowFavorites(false);
-          }}
-          channelCount={selectedPlaylist?.channelCount}
-        />
-      </div>
+    <div className="h-[100dvh] flex flex-col overflow-hidden relative">
+      <Header
+        onBack={goBack}
+        title={selectedPlaylist?.name || "Player"}
+        subtitle={selectedPlaylist?.type === "xtream" ? "Xtream Codes" : "M3U"}
+        searchQuery={searchQuery}
+        onSearchChange={setSearchQuery}
+        showFavorites={showFavorites}
+        onToggleFavorites={() => {
+          setShowFavorites(!showFavorites);
+          setShowRecent(false);
+        }}
+        showRecent={showRecent}
+        onToggleRecent={() => {
+          setShowRecent(!showRecent);
+          setShowFavorites(false);
+        }}
+        channelCount={selectedPlaylist?.channelCount}
+      />
+
       <div className="flex flex-col md:flex-row flex-1 overflow-hidden">
         {!showRecent && (selectedPlaylist?.groups?.length ?? 0) > 1 && (
-          <div className={mobileWatching ? "hidden md:block" : "block"}>
-            <CategorySidebar
-              groups={selectedPlaylist?.groups || []}
-              selectedGroup={selectedGroup}
-              onSelectGroup={(g) => {
-                setSelectedGroup(g);
-                setShowFavorites(false);
-                setShowRecent(false);
-              }}
-              collapsed={sidebarCollapsed}
-              onToggleCollapse={() => setSidebarCollapsed(!sidebarCollapsed)}
-            />
-          </div>
+          <CategorySidebar
+            groups={selectedPlaylist?.groups || []}
+            selectedGroup={selectedGroup}
+            onSelectGroup={(g) => {
+              setSelectedGroup(g);
+              setShowFavorites(false);
+              setShowRecent(false);
+            }}
+            collapsed={sidebarCollapsed}
+            onToggleCollapse={() => setSidebarCollapsed(!sidebarCollapsed)}
+          />
         )}
 
-        <div className={`${mobileWatching ? "hidden md:flex" : "flex"} flex-1 md:flex-none min-h-0`}>
+        <div className="flex flex-1 md:flex-none min-h-0">
           <ChannelList
             channels={channels}
             selectedChannel={selectedChannel}
@@ -322,16 +307,9 @@ export function PlayerApp() {
           />
         </div>
 
-        <div className={`${mobileWatching ? "flex" : "hidden md:flex"} flex-1 flex-col bg-black min-h-0`}>
-          {selectedChannel ? (
-            <VideoPlayer
-              channel={selectedChannel}
-              onNextChannel={() => navigateChannel(1)}
-              onPrevChannel={() => navigateChannel(-1)}
-              onBackMobile={() => setSelectedChannel(null)}
-              fullscreenSignal={fullscreenSignal}
-            />
-          ) : (
+        {/* Placeholder desktop/TV quand aucune chaîne n'est en lecture */}
+        {!watching && (
+          <div className="hidden md:flex flex-1 flex-col bg-black min-h-0">
             <div className="flex-1 flex items-center justify-center p-6">
               <div className="text-center slide-in-up">
                 <div className="w-20 h-20 sm:w-24 sm:h-24 rounded-3xl bg-dark-800 flex items-center justify-center mx-auto mb-6 border border-dark-600/50">
@@ -345,16 +323,28 @@ export function PlayerApp() {
                   {channels.length} chaîne{channels.length !== 1 ? "s" : ""} disponible
                   {channels.length !== 1 ? "s" : ""}
                 </p>
-                <div className="hidden md:flex items-center justify-center gap-4 mt-6 text-xs text-gray-600">
-                  <span><kbd>Shift+↑↓</kbd> Zapper</span>
-                  <span><kbd>F</kbd> Plein écran</span>
-                  <span><kbd>?</kbd> Aide</span>
-                </div>
               </div>
             </div>
-          )}
-        </div>
+          </div>
+        )}
       </div>
+
+      {/* Player en OVERLAY plein écran dès qu'une chaîne est active — visible
+          sur TV, tablette et mobile. C'est ce qui résout "je ne vois pas
+          l'écran de lecture". La touche Retour (registerBackHandler) ferme
+          d'abord ce player. */}
+      {watching && selectedChannel && (
+        <div className="fixed inset-0 z-50 bg-black flex flex-col">
+          <VideoPlayer
+            channel={selectedChannel}
+            onNextChannel={() => navigateChannel(1)}
+            onPrevChannel={() => navigateChannel(-1)}
+            onBackMobile={() => setSelectedChannel(null)}
+            fullscreenSignal={fullscreenSignal}
+          />
+        </div>
+      )}
+
       <ToastContainer toasts={toasts} onRemove={removeToast} />
     </div>
   );
