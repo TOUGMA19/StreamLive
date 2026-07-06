@@ -271,12 +271,32 @@ export function VideoPlayer({ channel, onNextChannel, onPrevChannel, onBackMobil
   }, []);
 
   const lastFullscreenSignalRef = useRef(0);
-  useEffect(() => {
-    if (fullscreenSignal && fullscreenSignal !== lastFullscreenSignalRef.current) {
-      lastFullscreenSignalRef.current = fullscreenSignal;
-      enterFullscreen();
+useEffect(() => {
+  if (fullscreenSignal && fullscreenSignal !== lastFullscreenSignalRef.current) {
+    lastFullscreenSignalRef.current = fullscreenSignal;
+    const video = videoRef.current;
+    const goFullscreen = () => enterFullscreen();
+
+    if (video && video.paused === false && video.readyState >= 2) {
+      // Déjà en cours de lecture => plein écran immédiat
+      goFullscreen();
+      return;
     }
-  }, [fullscreenSignal, enterFullscreen]);
+    if (!video) { goFullscreen(); return; }
+
+    // Attendre le vrai démarrage de la lecture (valable pour tous les
+    // formats : HLS, MP4 direct, etc.), avec un filet de sécurité de 4s
+    // au cas où l'événement "playing" ne se déclenche jamais (flux en erreur).
+    const onPlaying = () => { cleanup(); goFullscreen(); };
+    const timeout = setTimeout(() => { cleanup(); goFullscreen(); }, 4000);
+    const cleanup = () => {
+      clearTimeout(timeout);
+      video.removeEventListener("playing", onPlaying);
+    };
+    video.addEventListener("playing", onPlaying, { once: true });
+    return cleanup;
+  }
+}, [fullscreenSignal, enterFullscreen]);
 
   const togglePip = useCallback(async () => {
     const video = videoRef.current;
