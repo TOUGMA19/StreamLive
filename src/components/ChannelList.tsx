@@ -118,12 +118,14 @@ export function ChannelList({
     const now = Date.now();
     if (now - lastActivateAtRef.current < 400) return;
     lastActivateAtRef.current = now;
-    if (fullscreen && onPlayFullscreen) {
+    // Si la chaîne est DÉJÀ celle en lecture => 2e clic/OK = plein écran.
+    const isAlreadyPlaying = selectedChannel?.id === channel.id;
+    if ((fullscreen || isAlreadyPlaying) && onPlayFullscreen) {
       onPlayFullscreen(channel);
       return;
     }
     onPlay(channel);
-  }, [onPlay, onPlayFullscreen]);
+  }, [onPlay, onPlayFullscreen, selectedChannel]);
 
   // Si la liste reçoit le focus (ex: retour depuis la vidéo) sans qu'aucun
   // item ne soit encore focusable, on refocalise sur l'index courant afin
