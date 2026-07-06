@@ -32,6 +32,7 @@ export function ChannelList({
   const listRef = useRef<HTMLDivElement>(null);
   const [scrollTop, setScrollTop] = useState(0);
   const [viewportHeight, setViewportHeight] = useState(600);
+  const [focusedIndex, setFocusedIndex] = useState(0);
 
   // Mesure la hauteur réellement disponible (et la ré-évalue si la fenêtre change)
   useEffect(() => {
@@ -50,6 +51,7 @@ export function ChannelList({
     if (!selectedChannel || !listRef.current) return;
     const idx = channels.findIndex((c) => c.id === selectedChannel.id);
     if (idx === -1) return;
+    setFocusedIndex(idx);
     const el = listRef.current;
     const itemTop = idx * ITEM_HEIGHT;
     const itemBottom = itemTop + ITEM_HEIGHT;
@@ -61,9 +63,91 @@ export function ChannelList({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedChannel?.id]);
 
+  useEffect(() => {
+    setFocusedIndex((idx) => Math.min(Math.max(idx, 0), Math.max(channels.length - 1, 0)));
+  }, [channels.length]);
+
+  useEffect(() => {
+    const el = listRef.current;
+    if (!el || channels.length === 0) return;
+    const itemTop = focusedIndex * ITEM_HEIGHT;
+    const itemBottom = itemTop + ITEM_HEIGHT;
+    if (itemTop < el.scrollTop) {
+      el.scrollTop = itemTop;
+      setScrollTop(itemTop);
+    } else if (itemBottom > el.scrollTop + el.clientHeight) {
+      const nextScrollTop = itemBottom - el.clientHeight;
+      el.scrollTop = nextScrollTop;
+      setScrollTop(nextScrollTop);
+    }
+    requestAnimationFrame(() => {
+      el.querySelector<HTMLElement>(`[data-channel-index="${focusedIndex}"]`)?.focus({ preventScroll: true });
+    });
+  }, [focusedIndex, channels.length]);
+
   const handleScroll = useCallback((e: React.UIEvent<HTMLDivElement>) => {
     setScrollTop(e.currentTarget.scrollTop);
   }, []);
+
+  const moveFocus = useCallback((nextIndex: number) => {
+    if (channels.length === 0) return;
+    setFocusedIndex(Math.min(Math.max(nextIndex, 0), channels.length - 1));
+  }, [channels.length]);
+
+  const activateChannel = useCallback((channel: Channel, fullscreen = false) => {
+    if (fullscreen && onPlayFullscreen) {
+      onPlayFullscreen(channel);
+      return;
+    }
+    onPlay(channel);
+  }, [onPlay, onPlayFullscreen]);
+
+  const handleListKeyDown = useCallback((e: React.KeyboardEvent<HTMLDivElement>) => {
+    const keyCode = e.keyCode || (e.nativeEvent as unknown as { which?: number }).which || 0;
+    const isConfirm = e.key === "Enter" || e.key === " " || keyCode === 13 || keyCode === 23;
+    const pageSize = Math.max(1, Math.floor(viewportHeight / ITEM_HEIGHT) - 1);
+    if (isConfirm) {
+      const channel = channels[focusedIndex];
+      if (channel) {
+        e.preventDefault();
+        e.stopPropagation();
+        activateChannel(channel, true);
+      }
+      return;
+    }
+    switch (e.key) {
+      case "ArrowDown":
+        e.preventDefault();
+        e.stopPropagation();
+        moveFocus(focusedIndex + 1);
+        break;
+      case "ArrowUp":
+        e.preventDefault();
+        e.stopPropagation();
+        moveFocus(focusedIndex - 1);
+        break;
+      case "PageDown":
+        e.preventDefault();
+        e.stopPropagation();
+        moveFocus(focusedIndex + pageSize);
+        break;
+      case "PageUp":
+        e.preventDefault();
+        e.stopPropagation();
+        moveFocus(focusedIndex - pageSize);
+        break;
+      case "Home":
+        e.preventDefault();
+        e.stopPropagation();
+        moveFocus(0);
+        break;
+      case "End":
+        e.preventDefault();
+        e.stopPropagation();
+        moveFocus(channels.length - 1);
+        break;
+    }
+  }, [activateChannel, channels, focusedIndex, moveFocus, viewportHeight]);
 
   const totalHeight = channels.length * ITEM_HEIGHT;
   const startIndex = Math.max(0, Math.floor(scrollTop / ITEM_HEIGHT) - OVERSCAN);
@@ -99,7 +183,12 @@ export function ChannelList({
         </span>
       </div>
 
-      <div ref={listRef} className="flex-1 overflow-y-auto relative" onScroll={handleScroll}>
+      <div
+        ref={listRef}
+        className="flex-1 overflow-y-auto relative"
+        onScroll={handleScroll}
+        onKeyDownCapture={handleListKeyDown}
+      >
         {channels.length === 0 ? (
           <div className="p-8 text-center">
             <div className="text-4xl mb-3">🔍</div>
@@ -119,11 +208,17 @@ export function ChannelList({
                 <div
                   key={channel.id}
                   role="button"
-                  tabIndex={0}
-                  onClick={() => onPlay(channel)}
+                  tabIndex={actualIndex === focusedIndex ? 0 : -1}
+                  data-channel-index={actualIndex}
+                  onFocus={() => setFocusedIndex(actualIndex)}
+                  onClick={() => activateChannel(channel)}
                   onDoubleClick={() => onPlayFullscreen?.(channel)}
                   onKeyDown={(e) => {
-                    if (e.key === "Enter" || e.key === " ") { e.preventDefault(); onPlay(channel); }
+                    if (e.key === "Enter" || e.key === " ") {
+                      e.preventDefault();
+                      e.stopPropagation();
+                      activateChannel(channel, true);
+                    }
                   }}
                   style={{ position: "absolute", top: actualIndex * ITEM_HEIGHT, left: 0, right: 0, height: ITEM_HEIGHT }}
                   className={`channel-item focusable ${isSelected ? "active" : ""} flex items-center gap-3 px-3 cursor-pointer`}
