@@ -60,15 +60,37 @@ button:focus-visible, .channel-item:focus-visible, .focusable:focus-visible {
   z-index: 1;
 }
 
-/* Grand écran / TV (10-foot UI) : on agrandit un peu tout pour rester lisible à distance */
+/* Grand écran / TV (10-foot UI) : agrandissement lisible à distance +
+   cibles de focus plus grosses, plus contrastées. */
+@media (min-width: 1280px) {
+  html { font-size: 17px; }
+}
 @media (min-width: 1600px) {
-  html { font-size: 18px; }
+  html { font-size: 19px; }
+  .channel-item { min-height: 68px; }
+}
+@media (min-width: 1920px) {
+  html { font-size: 21px; }
+  .channel-item { min-height: 76px; }
 }
 
 /* Pointeur grossier (doigt / télécommande) : cibles plus grandes, pas de survol nécessaire */
 @media (hover: none) {
   .channel-item { min-height: 60px; }
+  button, [role="button"] { min-height: 44px; }
 }
+
+/* Focus TV — anneau très visible même à 3 mètres */
+@media (min-width: 1280px) {
+  :focus-visible {
+    outline-width: 4px !important;
+    outline-offset: 3px !important;
+  }
+  .channel-item:focus-visible, .focusable:focus-visible {
+    box-shadow: 0 0 0 6px var(--color-accent-glow) !important;
+  }
+}
+
 
 /* Barre de contrôles du lecteur : scroll horizontal invisible sur petit écran */
 .no-scrollbar { scrollbar-width: none; -ms-overflow-style: none; }
