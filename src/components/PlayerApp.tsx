@@ -309,7 +309,7 @@ export function PlayerApp() {
           />
         )}
 
-        <div className="flex flex-1 md:flex-none min-h-0">
+        <div className="flex md:flex-none min-h-0" style={{ flex: watching ? "0 0 auto" : 1 }}>
           <ChannelList
             channels={channels}
             selectedChannel={selectedChannel}
@@ -320,9 +320,19 @@ export function PlayerApp() {
           />
         </div>
 
-        {/* Placeholder desktop/TV quand aucune chaîne n'est en lecture */}
-        {!watching && (
-          <div className="hidden md:flex flex-1 flex-col bg-black min-h-0">
+        {/* Zone de lecture INLINE à droite. 1er clic = lecture ici.
+            2e clic (sur la chaîne, sur la vidéo, ou double-clic) = plein écran réel. */}
+        <div className="hidden md:flex flex-1 flex-col bg-black min-h-0">
+          {watching && selectedChannel ? (
+            <VideoPlayer
+              channel={selectedChannel}
+              onNextChannel={() => navigateChannel(1)}
+              onPrevChannel={() => navigateChannel(-1)}
+              onBackMobile={() => setSelectedChannel(null)}
+              fullscreenSignal={fullscreenSignal}
+              onRequestFullscreen={() => setFullscreenSignal((s) => s + 1)}
+            />
+          ) : (
             <div className="flex-1 flex items-center justify-center p-6">
               <div className="text-center slide-in-up">
                 <div className="w-20 h-20 sm:w-24 sm:h-24 rounded-3xl bg-dark-800 flex items-center justify-center mx-auto mb-6 border border-dark-600/50">
@@ -338,22 +348,20 @@ export function PlayerApp() {
                 </p>
               </div>
             </div>
-          </div>
-        )}
+          )}
+        </div>
       </div>
 
-      {/* Player en OVERLAY plein écran dès qu'une chaîne est active — visible
-          sur TV, tablette et mobile. C'est ce qui résout "je ne vois pas
-          l'écran de lecture". La touche Retour (registerBackHandler) ferme
-          d'abord ce player. */}
+      {/* Mobile (< md) : pas de panneau à droite, on affiche le player en overlay. */}
       {watching && selectedChannel && (
-        <div className="fixed inset-0 z-50 bg-black flex flex-col">
+        <div className="md:hidden fixed inset-0 z-50 bg-black flex flex-col">
           <VideoPlayer
             channel={selectedChannel}
             onNextChannel={() => navigateChannel(1)}
             onPrevChannel={() => navigateChannel(-1)}
             onBackMobile={() => setSelectedChannel(null)}
             fullscreenSignal={fullscreenSignal}
+            onRequestFullscreen={() => setFullscreenSignal((s) => s + 1)}
           />
         </div>
       )}
