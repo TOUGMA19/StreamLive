@@ -55,7 +55,8 @@ export function registerBackHandler(handler: BackHandler): () => void {
   const runHandler = async () => {
     if (disposed) return false;
     const now = Date.now();
-    if (now - lastRunAt < 450) return true; // on absorbe sans re-exécuter
+    if (now - lastRunAt < 700) return true; // on absorbe sans re-exécuter
+
     lastRunAt = now;
     try {
       const consumed = await handler();
