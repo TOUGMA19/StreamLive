@@ -1,6 +1,7 @@
 @import "tailwindcss";
 
 @theme {
+  /* Couleurs sombres */
   --color-dark-950: #050508;
   --color-dark-900: #0a0a0f;
   --color-dark-800: #111118;
@@ -8,15 +9,23 @@
   --color-dark-600: #22222f;
   --color-dark-500: #2c2c3a;
   --color-dark-400: #3a3a4a;
-  --color-accent-600: #991b1b;
-  --color-accent-500: #dc2626;
-  --color-accent-400: #ef4444;
-  --color-accent-300: #f87171;
-  --color-accent-glow: rgba(220, 38, 38, 0.3);
+
+  /* Nouvelle couleur principale : Vert */
+  --color-accent-600: #15803d;
+  --color-accent-500: #16a34a;
+  --color-accent-400: #22c55e;
+  --color-accent-300: #4ade80;
+
+  --color-accent-glow: rgba(34,197,94,0.35);
+
   --color-success: #22c55e;
   --color-warning: #f59e0b;
-  --color-danger: #ea0d12;
-  --color-live: #ea0d12;
+
+  /* Les erreurs restent rouges */
+  --color-danger: #ef4444;
+
+  /* LIVE devient vert */
+  --color-live: #22c55e;
 }
 
 * {
