@@ -224,10 +224,17 @@ export function PlayerApp() {
   useEffect(() => {
     const dispose = registerBackHandler(async () => {
       // 1) Si on est en plein écran vidéo => sortir du plein écran
-      if (typeof document !== "undefined" && document.fullscreenElement) {
-        try { await document.exitFullscreen(); } catch { /* ignore */ }
-        return true;
+      if (typeof document !== "undefined") {
+        const fsEl = document.fullscreenElement || (document as any).webkitFullscreenElement;
+        if (fsEl) {
+          try {
+            if (document.exitFullscreen) await document.exitFullscreen();
+            else if ((document as any).webkitExitFullscreen) await (document as any).webkitExitFullscreen();
+          } catch { /* ignore */ }
+          return true;
+        }
       }
+
       // 2) Si une chaîne est en lecture => revenir à la liste
       if (view === "player" && selectedChannel) {
         setSelectedChannel(null);
