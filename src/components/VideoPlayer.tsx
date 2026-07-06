@@ -43,6 +43,12 @@ export function VideoPlayer({ channel, onNextChannel, onPrevChannel, onBackMobil
   const [retryAttempt, setRetryAttempt] = useState(0);
   const hideTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
+  const startPlayback = useCallback(() => {
+    const video = videoRef.current;
+    if (!video) return;
+    video.play().then(() => setIsPlaying(true)).catch(() => setIsPlaying(false));
+  }, []);
+
   const resetHideTimer = useCallback(() => {
     setShowControls(true);
     if (hideTimerRef.current) clearTimeout(hideTimerRef.current);
@@ -130,7 +136,7 @@ export function VideoPlayer({ channel, onNextChannel, onPrevChannel, onBackMobil
               index, height: level.height, bitrate: level.bitrate,
             })));
           }
-          video.play().then(() => setIsPlaying(true)).catch(() => {});
+          startPlayback();
         });
 
         hls.on(Hls.Events.FRAG_BUFFERED, () => {
@@ -185,15 +191,18 @@ export function VideoPlayer({ channel, onNextChannel, onPrevChannel, onBackMobil
         video.src = proxiedUrl;
         video.addEventListener("loadedmetadata", () => {
           setLoading(false);
-          video.play().then(() => setIsPlaying(true)).catch(() => {});
+          startPlayback();
         }, { once: true });
       } else {
         // Stream direct (MP4, etc.)
         video.src = proxiedUrl;
-        video.addEventListener("loadeddata", () => {
+        const onPlayable = () => {
           setLoading(false);
-          video.play().then(() => setIsPlaying(true)).catch(() => {});
-        }, { once: true });
+          startPlayback();
+        };
+        video.addEventListener("loadedmetadata", onPlayable, { once: true });
+        video.addEventListener("canplay", onPlayable, { once: true });
+        video.addEventListener("loadeddata", onPlayable, { once: true });
       }
 
       const onError = () => {
@@ -214,7 +223,7 @@ export function VideoPlayer({ channel, onNextChannel, onPrevChannel, onBackMobil
         setLoading(false);
       }
     }
-  }, [channel.url]);
+  }, [channel.url, startPlayback]);
 
   useEffect(() => {
     loadStream(0);
@@ -226,9 +235,9 @@ export function VideoPlayer({ channel, onNextChannel, onPrevChannel, onBackMobil
   const togglePlay = useCallback(() => {
     const video = videoRef.current;
     if (!video) return;
-    if (video.paused) { video.play().then(() => setIsPlaying(true)).catch(() => {}); }
+    if (video.paused) { startPlayback(); }
     else { video.pause(); setIsPlaying(false); }
-  }, []);
+  }, [startPlayback]);
 
   const handleVolumeChange = useCallback((value: number) => {
     const video = videoRef.current;
@@ -262,32 +271,12 @@ export function VideoPlayer({ channel, onNextChannel, onPrevChannel, onBackMobil
   }, []);
 
   const lastFullscreenSignalRef = useRef(0);
-useEffect(() => {
-  if (fullscreenSignal && fullscreenSignal !== lastFullscreenSignalRef.current) {
-    lastFullscreenSignalRef.current = fullscreenSignal;
-    const video = videoRef.current;
-    const goFullscreen = () => enterFullscreen();
-
-    if (video && video.paused === false && video.readyState >= 2) {
-      // Déjà en cours de lecture => plein écran immédiat
-      goFullscreen();
-      return;
+  useEffect(() => {
+    if (fullscreenSignal && fullscreenSignal !== lastFullscreenSignalRef.current) {
+      lastFullscreenSignalRef.current = fullscreenSignal;
+      enterFullscreen();
     }
-    if (!video) { goFullscreen(); return; }
-
-    // Attendre le vrai démarrage de la lecture (valable pour tous les
-    // formats : HLS, MP4 direct, etc.), avec un filet de sécurité de 4s
-    // au cas où l'événement "playing" ne se déclenche jamais (flux en erreur).
-    const onPlaying = () => { cleanup(); goFullscreen(); };
-    const timeout = setTimeout(() => { cleanup(); goFullscreen(); }, 4000);
-    const cleanup = () => {
-      clearTimeout(timeout);
-      video.removeEventListener("playing", onPlaying);
-    };
-    video.addEventListener("playing", onPlaying, { once: true });
-    return cleanup;
-  }
-}, [fullscreenSignal, enterFullscreen]);
+  }, [fullscreenSignal, enterFullscreen]);
 
   const togglePip = useCallback(async () => {
     const video = videoRef.current;
@@ -318,6 +307,7 @@ useEffect(() => {
       if ((e.target as HTMLElement).tagName === "INPUT" || (e.target as HTMLElement).tagName === "TEXTAREA") return;
       switch (e.key) {
         case " ": case "k": e.preventDefault(); togglePlay(); break;
+        case "Enter": e.preventDefault(); if (!isPlaying) startPlayback(); else resetHideTimer(); break;
         case "f": e.preventDefault(); toggleFullscreen(); break;
         case "p": e.preventDefault(); togglePip(); break;
         case "m": e.preventDefault(); toggleMute(); break;
@@ -337,7 +327,7 @@ useEffect(() => {
     };
     window.addEventListener("keydown", handler);
     return () => window.removeEventListener("keydown", handler);
-  }, [togglePlay, toggleFullscreen, togglePip, toggleMute, cycleAspectRatio, handleVolumeChange, volume, onNextChannel, onPrevChannel, handleRetry]);
+  }, [togglePlay, toggleFullscreen, togglePip, toggleMute, cycleAspectRatio, handleVolumeChange, volume, onNextChannel, onPrevChannel, handleRetry, isPlaying, resetHideTimer, startPlayback]);
 
   useEffect(() => {
     const h = () => setIsFullscreen(!!document.fullscreenElement);
