@@ -224,17 +224,10 @@ export function PlayerApp() {
   useEffect(() => {
     const dispose = registerBackHandler(async () => {
       // 1) Si on est en plein écran vidéo => sortir du plein écran
-      if (typeof document !== "undefined") {
-        const fsEl = document.fullscreenElement || (document as any).webkitFullscreenElement;
-        if (fsEl) {
-          try {
-            if (document.exitFullscreen) await document.exitFullscreen();
-            else if ((document as any).webkitExitFullscreen) await (document as any).webkitExitFullscreen();
-          } catch { /* ignore */ }
-          return true;
-        }
+      if (typeof document !== "undefined" && document.fullscreenElement) {
+        try { await document.exitFullscreen(); } catch { /* ignore */ }
+        return true;
       }
-
       // 2) Si une chaîne est en lecture => revenir à la liste
       if (view === "player" && selectedChannel) {
         setSelectedChannel(null);
@@ -295,21 +288,28 @@ export function PlayerApp() {
       />
 
       <div className="flex flex-col md:flex-row flex-1 overflow-hidden">
+        {/* Sidebar catégories — masquée sur mobile quand on regarde une chaîne
+            pour libérer toute la hauteur au player. */}
         {!showRecent && (selectedPlaylist?.groups?.length ?? 0) > 1 && (
-          <CategorySidebar
-            groups={selectedPlaylist?.groups || []}
-            selectedGroup={selectedGroup}
-            onSelectGroup={(g) => {
-              setSelectedGroup(g);
-              setShowFavorites(false);
-              setShowRecent(false);
-            }}
-            collapsed={sidebarCollapsed}
-            onToggleCollapse={() => setSidebarCollapsed(!sidebarCollapsed)}
-          />
+          <div className={watching ? "hidden md:flex" : "flex"}>
+            <CategorySidebar
+              groups={selectedPlaylist?.groups || []}
+              selectedGroup={selectedGroup}
+              onSelectGroup={(g) => {
+                setSelectedGroup(g);
+                setShowFavorites(false);
+                setShowRecent(false);
+              }}
+              collapsed={sidebarCollapsed}
+              onToggleCollapse={() => setSidebarCollapsed(!sidebarCollapsed)}
+            />
+          </div>
         )}
 
-        <div className="flex md:flex-none min-h-0" style={{ flex: watching ? "0 0 auto" : 1 }}>
+        {/* Liste des chaînes — sur mobile, on la masque dès qu'une chaîne est
+            en lecture pour laisser le player prendre tout l'écran. Sur
+            tablette/TV, elle reste visible à gauche pendant la lecture. */}
+        <div className={`${watching ? "hidden md:flex" : "flex flex-1"} md:flex-none min-h-0`}>
           <ChannelList
             channels={channels}
             selectedChannel={selectedChannel}
@@ -320,9 +320,11 @@ export function PlayerApp() {
           />
         </div>
 
-        {/* Zone de lecture INLINE à droite. 1er clic = lecture ici.
-            2e clic (sur la chaîne, sur la vidéo, ou double-clic) = plein écran réel. */}
-        <div className="hidden md:flex flex-1 flex-col bg-black min-h-0">
+        {/* Zone de lecture — TOUJOURS rendue à droite (inline), sur toutes
+            les tailles y compris les TV 32/45/54". C'est la clé du fix :
+            l'ancien overlay `fixed inset-0` cachait tout et écrasait le
+            layout TV. Ici, le player occupe naturellement l'espace restant. */}
+        <div className="flex flex-1 flex-col bg-black min-h-0 min-w-0">
           {watching && selectedChannel ? (
             <VideoPlayer
               channel={selectedChannel}
@@ -330,7 +332,6 @@ export function PlayerApp() {
               onPrevChannel={() => navigateChannel(-1)}
               onBackMobile={() => setSelectedChannel(null)}
               fullscreenSignal={fullscreenSignal}
-              onRequestFullscreen={() => setFullscreenSignal((s) => s + 1)}
             />
           ) : (
             <div className="flex-1 flex items-center justify-center p-6">
@@ -351,20 +352,6 @@ export function PlayerApp() {
           )}
         </div>
       </div>
-
-      {/* Mobile (< md) : pas de panneau à droite, on affiche le player en overlay. */}
-      {watching && selectedChannel && (
-        <div className="md:hidden fixed inset-0 z-50 bg-black flex flex-col">
-          <VideoPlayer
-            channel={selectedChannel}
-            onNextChannel={() => navigateChannel(1)}
-            onPrevChannel={() => navigateChannel(-1)}
-            onBackMobile={() => setSelectedChannel(null)}
-            fullscreenSignal={fullscreenSignal}
-            onRequestFullscreen={() => setFullscreenSignal((s) => s + 1)}
-          />
-        </div>
-      )}
 
       <ToastContainer toasts={toasts} onRemove={removeToast} />
     </div>
