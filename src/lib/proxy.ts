@@ -164,3 +164,33 @@ export async function prefetchSegment(url: string): Promise<void> {
     });
   } catch { /* ignore */ }
 }
+
+/**
+ * Détecte les URLs vavoo.to / vavoo.tv à résoudre côté serveur avant lecture.
+ */
+export function isVavooUrl(url: string): boolean {
+  try {
+    const u = new URL(url);
+    return /(^|\.)vavoo\.(to|tv)$/i.test(u.hostname);
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Résout un lien vavoo.to en URL de flux HLS finale via /api/vavoo.
+ * Renvoie l'URL originale en cas d'échec (le proxy tentera son propre bypass).
+ */
+export async function resolveVavooUrl(url: string): Promise<string> {
+  if (!isVavooUrl(url)) return url;
+  try {
+    const res = await fetch(`/api/vavoo?url=${encodeURIComponent(url)}`, {
+      signal: AbortSignal.timeout(20000),
+    });
+    if (!res.ok) return url;
+    const data = await res.json();
+    return typeof data?.url === "string" && data.url ? data.url : url;
+  } catch {
+    return url;
+  }
+}
