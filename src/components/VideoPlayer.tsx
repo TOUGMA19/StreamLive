@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState, useCallback } from "react";
 import Hls from "hls.js";
 import type { Channel } from "@/lib/types";
-import { proxyStreamUrl, prefetchSegment } from "@/lib/proxy";
+import { proxyStreamUrl, prefetchSegment, resolveVavooUrl, isVavooUrl } from "@/lib/proxy";
 
 interface VideoPlayerProps {
   channel: Channel;
@@ -77,7 +77,15 @@ export function VideoPlayer({ channel, onNextChannel, onPrevChannel, onBackMobil
       hlsRef.current = null;
     }
 
-    const rawUrl = channel.url;
+    // Résolution préalable des liens vavoo.to → URL HLS finale
+    let rawUrl = channel.url;
+    if (isVavooUrl(rawUrl)) {
+      try {
+        rawUrl = await resolveVavooUrl(rawUrl);
+      } catch {
+        // fallback : on garde l'URL originale, le proxy tentera son bypass
+      }
+    }
     const proxiedUrl = proxyStreamUrl(rawUrl);
 
     // Détection améliorée HLS
